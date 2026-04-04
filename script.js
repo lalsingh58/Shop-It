@@ -43,19 +43,17 @@ faceMesh.onResults((results) => {
     const y2 = rightEye.y * canvas.height;
 
     // Calculate width of glasses
-    const glassesWidth = Math.abs(x2 - x1) * 2;
+    const glassesWidth = Math.abs(x2 - x1) * 1.3;
 
-    // Position
     const centerX = (x1 + x2) / 2;
     const centerY = (y1 + y2) / 2;
 
-    const glassesHeight = glassesWidth * 0.5;
+    const glassesHeight = glassesWidth * 0.4;
 
-    // Draw glasses
     ctx.drawImage(
       glasses,
       centerX - glassesWidth / 2,
-      centerY - glassesHeight / 2,
+      centerY - glassesHeight / 2.2,
       glassesWidth,
       glassesHeight,
     );
