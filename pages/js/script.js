@@ -23,12 +23,12 @@ faceMesh.setOptions({
 
 // Load glasses image
 const glasses = new Image();
-glasses.src = "./glasses/image1.png";
+glasses.src = localStorage.getItem("selectedProduct");
 
 faceMesh.onResults((results) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (results.multiFaceLandmarks.length > 0) {
+  if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
     const landmarks = results.multiFaceLandmarks[0];
 
     // Get eye points
