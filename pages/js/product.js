@@ -3,7 +3,7 @@ const products = [
   {
     name: "Classic Glasses",
     price: 499,
-    img: "assets/glasses/g1.png",
+    img: "../assets/glasses/g1.png",
     type: "glasses",
   },
   {
