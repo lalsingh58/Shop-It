@@ -31,24 +31,21 @@ faceMesh.onResults((results) => {
   if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
     const landmarks = results.multiFaceLandmarks[0];
 
-    // Get eye points
-    const leftEye = landmarks[33]; // left eye
-    const rightEye = landmarks[263]; // right eye
+    const leftEye = landmarks[33];
+    const rightEye = landmarks[263];
 
-    // Convert to canvas coordinates
     const x1 = leftEye.x * canvas.width;
     const y1 = leftEye.y * canvas.height;
 
     const x2 = rightEye.x * canvas.width;
     const y2 = rightEye.y * canvas.height;
 
-    // Calculate width of glasses
-    const glassesWidth = Math.abs(x2 - x1) * 1.3;
-
+    const glassesWidth = Math.abs(x2 - x1) * 1.5;
     const centerX = (x1 + x2) / 2;
     const centerY = (y1 + y2) / 2;
+    const glassesHeight = glassesWidth * 0.5;
 
-    const glassesHeight = glassesWidth * 0.4;
+    if (!glasses.complete) return;
 
     ctx.drawImage(
       glasses,
