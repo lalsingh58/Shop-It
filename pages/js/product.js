@@ -3,7 +3,7 @@ const products = [
   {
     name: "Classic Glasses",
     price: 499,
-    img: "/assets/glasses/g1.png",
+    img: "./assets/glasses/g1.png",
     type: "glasses",
   },
   {
@@ -98,7 +98,7 @@ products.forEach((product) => {
   card.querySelector(".try-btn").onclick = () => {
     localStorage.setItem("selectedProduct", product.img);
     localStorage.setItem("productType", product.type);
-    window.location.href = "tryon.html";
+    window.location.href = "../html/tryon.html";
   };
 
   // Cart Button
