@@ -1,54 +1,198 @@
-body {
+/* Reset */
+* {
   margin: 0;
-  text-align: center;
-  font-family: Arial, sans-serif;
-  background: #111;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* Global container */
+.container {
+  width: 90%;
+  max-width: 1400px;
+  margin: auto;
+}
+
+/* Body */
+body {
+  background: #0f172a;
   color: white;
 }
 
-/* Title */
-h2 {
-  margin-top: 20px;
-  font-size: 1.5rem;
-}
-
-/* Container for camera */
-.camera-container {
-  position: relative;
-  width: 90%;
-  max-width: 640px;
-  margin: 20px auto;
-  aspect-ratio: 4 / 3;
-}
-
-/* Video & Canvas */
-video,
-canvas {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  left: 0;
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  backdrop-filter: blur(10px);
+  background: rgba(2, 6, 23, 0.7);
+  position: sticky;
   top: 0;
-  object-fit: cover;
-  border-radius: 10px;
+  z-index: 100;
 }
 
-/* Layering */
-canvas {
-  z-index: 1;
+.logo {
+  font-size: 22px;
+  font-weight: bold;
+  color: #38bdf8;
 }
 
-video {
-  z-index: 0;
+.nav-links a {
+  margin-left: 20px;
+  text-decoration: none;
+  color: white;
+  position: relative;
 }
 
-/* Mobile adjustments */
-@media (max-width: 480px) {
-  h2 {
-    font-size: 1.2rem;
+/* Nav Hover */
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  background: #38bdf8;
+  left: 0;
+  bottom: -5px;
+  transition: 0.3s;
+}
+
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+/* Hero */
+.hero {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.hero h2 {
+  font-size: 40px;
+  background: linear-gradient(90deg, #38bdf8, #6366f1);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.hero p {
+  margin: 15px auto;
+  max-width: 600px;
+  color: #cbd5f5;
+}
+
+/* Button */
+.btn {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 12px 25px;
+  background: #38bdf8;
+  color: black;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.btn:hover {
+  transform: scale(1.05);
+  background: #0ea5e9;
+}
+
+/* Categories */
+.categories {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  padding: 40px;
+}
+
+.cat {
+  background: #020617;
+  padding: 30px;
+  text-align: center;
+  border-radius: 12px;
+  transition: 0.3s;
+  cursor: pointer;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.cat:hover {
+  transform: translateY(-10px) scale(1.05);
+  background: #0f172a;
+}
+
+/* About */
+.about {
+  padding: 50px 20px;
+  text-align: center;
+}
+
+.about p {
+  max-width: 700px;
+  margin: 10px auto;
+  color: #cbd5f5;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 20px;
+  background: #020617;
+}
+
+/* Animations */
+.fade-in {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: 0.8s;
+}
+
+.fade-in.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ========================= */
+/* 📱 RESPONSIVE DESIGN */
+/* ========================= */
+
+/* Tablet */
+@media (max-width: 900px) {
+  .categories {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .camera-container {
-    width: 95%;
+  .hero h2 {
+    font-size: 32px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .navbar {
+    flex-direction: column;
+  }
+
+  .nav-links {
+    margin-top: 10px;
+  }
+
+  .nav-links a {
+    margin: 10px;
+  }
+
+  .categories {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    padding: 50px 15px;
+  }
+
+  .hero h2 {
+    font-size: 26px;
+  }
+
+  .hero p {
+    font-size: 14px;
   }
 }

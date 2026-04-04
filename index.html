@@ -1,20 +1,59 @@
 <!doctype html>
 <html>
   <head>
-    <title>Shop It - Virtual Try On</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>Shop It</title>
+    <link rel="stylesheet" href="./style.css" />
   </head>
 
   <body>
-    <h2>👓 Virtual Glasses Try-On</h2>
+    <!-- Navbar -->
+    <nav class="navbar">
+      <div class="logo">SHOP IT</div>
 
-    <video id="video" width="640" height="480" autoplay playsinline></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
+      <div class="nav-links">
+        <a href="./index.html">Home</a>
+        <a href="./pages/html/product.html">Shop</a>
+        <a href="./pages/html/cart.html">Cart</a>
+      </div>
+    </nav>
 
-    <!-- MediaPipe Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <!-- Hero -->
+    <section class="hero fade-in">
+      <h2>Try Before You Buy</h2>
+      <p>
+        Experience next-generation shopping with AR try-on technology. See how
+        products look on you before purchasing.
+      </p>
+      <a href="#" class="btn">Start Shopping</a>
+    </section>
 
-    <script src="script.js"></script>
+    <!-- Categories -->
+    <section class="categories fade-in">
+      <div class="cat">👓 Glasses</div>
+      <div class="cat">🧢 Caps</div>
+      <div class="cat">💇 Wigs</div>
+      <div class="cat">💍 Earrings</div>
+    </section>
+
+    <!-- About -->
+    <section class="about fade-in">
+      <h2>About Shop It</h2>
+      <p>
+        Shop It is a smart online shopping platform that uses augmented reality
+        to let users try products virtually before buying. This removes
+        guesswork and improves confidence in online purchases.
+      </p>
+      <p>
+        Our goal is to combine technology and fashion to create a seamless,
+        interactive shopping experience for everyone.
+      </p>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>© 2026 Shop It | Built by You 😎</p>
+    </footer>
+
+    <script src="./script.js"></script>
   </body>
 </html>
