@@ -23,7 +23,7 @@ faceMesh.setOptions({
 
 // Load glasses image
 const glasses = new Image();
-glasses.src = "./glasses/image.png";
+glasses.src = "./glasses/image1.png";
 
 faceMesh.onResults((results) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
