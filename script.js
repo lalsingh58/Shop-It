@@ -21,23 +21,44 @@ faceMesh.setOptions({
   minTrackingConfidence: 0.5,
 });
 
-// When results come
+// Load glasses image
+const glasses = new Image();
+glasses.src = "./glasses/image.png";
+
 faceMesh.onResults((results) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (results.multiFaceLandmarks.length > 0) {
     const landmarks = results.multiFaceLandmarks[0];
 
-    // Draw points (for testing)
-    for (let i = 0; i < landmarks.length; i++) {
-      const x = landmarks[i].x * canvas.width;
-      const y = landmarks[i].y * canvas.height;
+    // Get eye points
+    const leftEye = landmarks[33]; // left eye
+    const rightEye = landmarks[263]; // right eye
 
-      ctx.beginPath();
-      ctx.arc(x, y, 2, 0, 2 * Math.PI);
-      ctx.fillStyle = "lime";
-      ctx.fill();
-    }
+    // Convert to canvas coordinates
+    const x1 = leftEye.x * canvas.width;
+    const y1 = leftEye.y * canvas.height;
+
+    const x2 = rightEye.x * canvas.width;
+    const y2 = rightEye.y * canvas.height;
+
+    // Calculate width of glasses
+    const glassesWidth = Math.abs(x2 - x1) * 2;
+
+    // Position
+    const centerX = (x1 + x2) / 2;
+    const centerY = (y1 + y2) / 2;
+
+    const glassesHeight = glassesWidth * 0.5;
+
+    // Draw glasses
+    ctx.drawImage(
+      glasses,
+      centerX - glassesWidth / 2,
+      centerY - glassesHeight / 2,
+      glassesWidth,
+      glassesHeight,
+    );
   }
 });
 
