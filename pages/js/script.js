@@ -21,10 +21,20 @@ faceMesh.setOptions({
   minTrackingConfidence: 0.5,
 });
 
-// Load glasses image
+// Load glasses image from localStorage
 const glasses = new Image();
 glasses.src = localStorage.getItem("selectedProduct");
 
+// Optional fallback (if nothing selected)
+if (!glasses.src) {
+  glasses.src = "assets/glasses/g1.png";
+}
+
+// Smooth movement variables
+let prevX = 0;
+let prevY = 0;
+
+// Face detection result
 faceMesh.onResults((results) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -40,24 +50,50 @@ faceMesh.onResults((results) => {
     const x2 = rightEye.x * canvas.width;
     const y2 = rightEye.y * canvas.height;
 
-    const glassesWidth = Math.abs(x2 - x1) * 1.5;
-    const centerX = (x1 + x2) / 2;
-    const centerY = (y1 + y2) / 2;
-    const glassesHeight = glassesWidth * 0.5;
+    // 🎯 Distance between eyes
+    const eyeDistance = Math.abs(x2 - x1);
+
+    // 🎯 PERFECT SETTINGS (tuned)
+    const scale = 1.1;
+    const heightRatio = 0.35;
+    const yOffset = 2.6;
+
+    const glassesWidth = eyeDistance * scale;
+    const glassesHeight = glassesWidth * heightRatio;
+
+    let centerX = (x1 + x2) / 2;
+    let centerY = (y1 + y2) / 2;
+
+    // 🎯 Smooth movement (reduces shaking)
+    centerX = prevX * 0.7 + centerX * 0.3;
+    centerY = prevY * 0.7 + centerY * 0.3;
+
+    prevX = centerX;
+    prevY = centerY;
+
+    // 🎯 Rotation (head tilt support)
+    const angle = Math.atan2(y2 - y1, x2 - x1);
 
     if (!glasses.complete) return;
 
+    // 🔥 Draw with rotation
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(angle);
+
     ctx.drawImage(
       glasses,
-      centerX - glassesWidth / 2,
-      centerY - glassesHeight / 2.2,
+      -glassesWidth / 2,
+      -glassesHeight / yOffset,
       glassesWidth,
       glassesHeight,
     );
+
+    ctx.restore();
   }
 });
 
-// Connect camera to FaceMesh
+// Connect camera
 const camera = new Camera(video, {
   onFrame: async () => {
     await faceMesh.send({ image: video });
