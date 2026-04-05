@@ -10,12 +10,12 @@
 
     <link rel="stylesheet" href="../css/tryon.css" />
 
-    <!-- TensorFlow -->
+    <!-- ✅ TensorFlow (order matters) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
 
-    <!-- Three.js -->
+    <!-- ✅ Three.js -->
     <script type="importmap">
       {
         "imports": {
@@ -24,12 +24,81 @@
         }
       }
     </script>
+
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: sans-serif;
+        background: black;
+      }
+
+      video {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1); /* mirror */
+        z-index: 1;
+      }
+
+      canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 2;
+      }
+
+      .top-bar {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        justify-content: space-between;
+        z-index: 3;
+        color: white;
+      }
+
+      .controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 3;
+      }
+
+      button {
+        padding: 10px;
+        margin: 5px;
+        border: none;
+        border-radius: 6px;
+        background: #2563eb;
+        color: white;
+        cursor: pointer;
+      }
+
+      #faceLabel {
+        position: fixed;
+        bottom: 80px;
+        width: 100%;
+        text-align: center;
+        color: white;
+        z-index: 3;
+      }
+    </style>
   </head>
 
   <body>
+    <!-- ✅ CAMERA -->
     <video id="video" autoplay playsinline muted></video>
+
+    <!-- ✅ 3D OVERLAY -->
     <canvas id="threeCanvas"></canvas>
 
+    <!-- UI -->
     <div class="top-bar">
       <button onclick="goBack()">⬅ Back</button>
       <h2>AI Try On</h2>
@@ -43,6 +112,7 @@
 
     <div id="faceLabel">📷 Starting camera...</div>
 
+    <!-- ✅ YOUR JS -->
     <script type="module" src="../js/tryon.js"></script>
   </body>
 </html>
