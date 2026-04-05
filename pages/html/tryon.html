@@ -8,21 +8,17 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
     <!-- Three.js -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
 
-    <link rel="stylesheet" href="../css/tryon.css" />
+    <link rel="stylesheet" href="/css/tryon.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
 
   <body>
-    <!-- Camera -->
-    <video id="video" autoplay playsinline></video>
-
-    <!-- 3D Canvas -->
+    <video id="video" autoplay playsinline muted></video>
     <canvas id="threeCanvas"></canvas>
 
-    <!-- UI -->
     <div class="top-bar">
       <button onclick="goBack()">⬅ Back</button>
       <h2>Try On</h2>
@@ -33,6 +29,6 @@
       <button onclick="changeSize(0.1)">+</button>
     </div>
 
-    <script src="../js/tryon.js"></script>
+    <script src="/js/tryon.js"></script>
   </body>
 </html>

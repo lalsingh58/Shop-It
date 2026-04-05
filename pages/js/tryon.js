@@ -1,10 +1,15 @@
 const video = document.getElementById("video");
 const canvas = document.getElementById("threeCanvas");
 
+// 🔥 GET DATA
 const modelPath = localStorage.getItem("selectedModel");
 const productType = localStorage.getItem("productType");
 
-let userScale = 1;
+// ❌ NO MODEL FIX
+if (!modelPath) {
+  alert("No product selected!");
+  window.location.href = "/html/products.html";
+}
 
 // THREE SETUP
 const scene = new THREE.Scene();
@@ -22,14 +27,21 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true,
   antialias: true,
 });
-renderer.setSize(window.innerWidth, window.innerHeight);
 
-// 🔥 LIGHTING (REALISTIC)
-const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
-scene.add(light);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+
+// 🔥 LIGHTING
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(0, 1, 2);
+scene.add(dirLight);
 
 // MODEL
 let model;
+let userScale = 1;
+
 const loader = new THREE.GLTFLoader();
 
 loader.load(
@@ -37,23 +49,27 @@ loader.load(
   (gltf) => {
     model = gltf.scene;
 
-    let baseScale = 0.5;
+    // AUTO CENTER
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3()).length();
 
-    if (productType === "glasses") baseScale = 0.6;
-    if (productType === "cap") baseScale = 1.3;
-    if (productType === "wig") baseScale = 1.5;
-    if (productType === "earring") baseScale = 0.3;
+    model.position.sub(center);
 
-    model.scale.set(baseScale, baseScale, baseScale);
-    userScale = baseScale;
+    const scale = 1.5 / size;
+    model.scale.set(scale, scale, scale);
+    userScale = scale;
 
     scene.add(model);
   },
   undefined,
-  (err) => alert("❌ Model load error"),
+  (err) => {
+    console.error(err);
+    alert("Model failed to load");
+  },
 );
 
-// SMOOTHING
+// SMOOTH
 let smooth = { x: 0, y: 0, z: -2, init: false };
 
 function lerp(a, b, t = 0.2) {
@@ -86,7 +102,7 @@ function update3D(lm) {
   let angle = Math.atan2(right.y - left.y, right.x - left.x);
   model.rotation.z = angle;
 
-  // 🎯 TYPE BASED POSITION
+  // TYPE ADJUST
   if (productType === "cap" || productType === "wig") {
     model.position.y += 0.4;
   }
@@ -114,19 +130,28 @@ faceMesh.onResults((res) => {
   update3D(lm);
 });
 
-// CAMERA
-const camera = new Camera(video, {
+// CAMERA FIX (IMPORTANT)
+const cam = new Camera(video, {
   onFrame: async () => {
     await faceMesh.send({ image: video });
   },
+  width: 640,
+  height: 480,
 });
 
-// START
-navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-  video.srcObject = stream;
-  video.play();
-  camera.start();
-});
+// START CAMERA
+navigator.mediaDevices
+  .getUserMedia({ video: { facingMode: "user" } })
+  .then((stream) => {
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      video.play();
+      cam.start();
+    };
+  })
+  .catch((err) => {
+    alert("Camera error: " + err.message);
+  });
 
 // RENDER
 function animate() {

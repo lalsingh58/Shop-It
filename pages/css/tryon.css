@@ -1,22 +1,18 @@
-/* RESET */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* BODY */
 body {
   overflow: hidden;
-  font-family: "Segoe UI", sans-serif;
+  font-family: sans-serif;
   background: black;
 }
 
-/* CAMERA VIDEO */
+/* VIDEO */
 video {
   position: fixed;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -24,7 +20,7 @@ video {
   z-index: 1;
 }
 
-/* 3D CANVAS */
+/* CANVAS */
 #threeCanvas {
   position: fixed;
   top: 0;
@@ -39,19 +35,13 @@ video {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
+  padding: 12px;
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
   color: white;
   z-index: 3;
 }
 
-.top-bar h2 {
-  font-size: 18px;
-}
-
-/* CONTROLS */
+/* BUTTONS */
 .controls {
   position: fixed;
   bottom: 20px;
@@ -68,30 +58,12 @@ button {
   background: #38bdf8;
   color: black;
   font-weight: bold;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-button:hover {
-  background: #0ea5e9;
 }
 
 /* MOBILE */
 @media (max-width: 600px) {
-  .top-bar h2 {
-    font-size: 16px;
-  }
-
   button {
     padding: 8px 12px;
     font-size: 14px;
-  }
-}
-
-/* SMALL MOBILE */
-@media (max-width: 400px) {
-  button {
-    padding: 7px 10px;
-    font-size: 13px;
   }
 }
