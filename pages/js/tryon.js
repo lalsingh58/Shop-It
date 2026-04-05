@@ -1,329 +1,187 @@
 (function () {
-  // ---------- DOM elements ----------
   const video = document.getElementById("video");
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
   const statusHint = document.getElementById("statusHint");
 
-  // ---------- Product data from localStorage ----------
   let productType = localStorage.getItem("productType") || "glasses";
   let productImageSrc = localStorage.getItem("selectedProduct");
 
-  // Robust fallback images (working HTTPS URLs)
   const fallbackImages = {
     glasses: "https://cdn-icons-png.flaticon.com/512/3486/3486923.png",
     cap: "https://cdn-icons-png.flaticon.com/512/3028/3028776.png",
     wig: "https://cdn-icons-png.flaticon.com/512/3043/3043779.png",
     earring: "https://cdn-icons-png.flaticon.com/512/5272/5272319.png",
+    necklace: "https://cdn-icons-png.flaticon.com/512/992/992700.png",
+    mask: "https://cdn-icons-png.flaticon.com/512/4140/4140048.png",
   };
 
-  if (
-    !productImageSrc ||
-    productImageSrc === "null" ||
-    productImageSrc === "undefined"
-  ) {
-    productImageSrc = fallbackImages[productType] || fallbackImages.glasses;
-    console.warn("Using fallback product image:", productImageSrc);
-    statusHint.innerText = "Demo product loaded. Use +/− to resize.";
-  } else {
-    console.log("Product from localStorage:", productImageSrc);
-    statusHint.innerText = "Product ready | +/− to resize";
+  if (!productImageSrc || productImageSrc === "null") {
+    productImageSrc = fallbackImages[productType];
   }
 
-  // Load product image with error recovery
   const productImg = new Image();
   let productLoaded = false;
-  productImg.crossOrigin = "Anonymous"; // avoid CORS issues if possible
 
-  productImg.onload = () => {
-    productLoaded = true;
-    console.log(
-      "✅ Product image loaded:",
-      productImg.width,
-      productImg.height,
-    );
-    statusHint.style.opacity = "0.5";
+  productImg.onload = () => (productLoaded = true);
+  productImg.onerror = () => {
+    productImg.src = fallbackImages[productType];
   };
-
-  productImg.onerror = (err) => {
-    console.error("❌ Failed to load product image:", productImageSrc, err);
-    // Try fallback
-    const fallbackSrc = fallbackImages[productType];
-    if (fallbackSrc && productImageSrc !== fallbackSrc) {
-      console.log("🔄 Retrying with fallback image:", fallbackSrc);
-      productImageSrc = fallbackSrc;
-      productImg.src = fallbackSrc;
-    } else {
-      statusHint.innerText = "Error: product image missing";
-    }
-  };
-
   productImg.src = productImageSrc;
 
-  // ---------- Global variables ----------
-  let userScale = 1.0;
-  let lastVideoWidth = 0,
-    lastVideoHeight = 0;
+  let userScale = 1;
 
-  // Smoothing for glasses, cap, wig
-  let smoothX = 0,
-    smoothY = 0;
-  let smoothAngle = 0;
-  let hasPrev = false;
+  // 🔥 Advanced smoothing system
+  const smooth = {
+    x: 0,
+    y: 0,
+    angle: 0,
+    scale: 1,
+    init: false,
+  };
 
-  // Smoothing for earrings
-  let leftEarX = 0,
-    leftEarY = 0;
-  let rightEarX = 0,
-    rightEarY = 0;
-  let earHasPrev = false;
-
-  let faceMesh = null;
-  let camera = null;
-
-  // ---------- Resize canvas only when video dimensions change ----------
-  function resizeCanvasIfNeeded() {
-    if (video.videoWidth && video.videoHeight) {
-      if (
-        video.videoWidth !== lastVideoWidth ||
-        video.videoHeight !== lastVideoHeight
-      ) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.style.width = `${video.videoWidth}px`;
-        canvas.style.height = `${video.videoHeight}px`;
-        video.style.width = `${video.videoWidth}px`;
-        video.style.height = `${video.videoHeight}px`;
-        lastVideoWidth = video.videoWidth;
-        lastVideoHeight = video.videoHeight;
-        console.log(`Canvas resized: ${canvas.width} x ${canvas.height}`);
-      }
-    }
+  function lerp(a, b, t = 0.25) {
+    return a + (b - a) * t;
   }
 
-  // Draw video frame on canvas (background)
-  function drawVideoOnCanvas() {
-    if (
-      video.videoWidth &&
-      video.videoHeight &&
-      canvas.width === video.videoWidth
-    ) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    }
+  function resizeCanvas() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
   }
 
-  // ---------- Drawing functions per product ----------
-  function drawGlasses(landmarks) {
-    const leftEye = landmarks[33];
-    const rightEye = landmarks[263];
-    if (!leftEye || !rightEye) return;
+  function drawFrame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  }
 
-    const x1 = leftEye.x * canvas.width;
-    const y1 = leftEye.y * canvas.height;
-    const x2 = rightEye.x * canvas.width;
-    const y2 = rightEye.y * canvas.height;
+  // 🔥 Depth estimation using eye distance
+  function getDepthScale(lm) {
+    const l = lm[33];
+    const r = lm[263];
+    const dist = Math.hypot(
+      (r.x - l.x) * canvas.width,
+      (r.y - l.y) * canvas.height,
+    );
+    return dist / 150; // normalize
+  }
 
-    const eyeDist = Math.hypot(x2 - x1, y2 - y1);
-    let baseWidth = eyeDist * 1.8 * userScale;
-    let aspect = productImg.height / productImg.width;
-    let height = baseWidth * aspect;
-    let width = baseWidth;
+  // 🎯 GLASSES (Premium alignment)
+  function drawGlasses(lm) {
+    const l = lm[33];
+    const r = lm[263];
+
+    let x1 = l.x * canvas.width;
+    let y1 = l.y * canvas.height;
+    let x2 = r.x * canvas.width;
+    let y2 = r.y * canvas.height;
 
     let centerX = (x1 + x2) / 2;
-    let centerY = (y1 + y2) / 2;
-    let angle = Math.atan2(y2 - y1, x2 - x1);
+    let centerY = (y1 + y2) / 2 - 12;
 
-    if (!hasPrev) {
-      smoothX = centerX;
-      smoothY = centerY;
-      smoothAngle = angle;
-      hasPrev = true;
-    } else {
-      smoothX = smoothX * 0.7 + centerX * 0.3;
-      smoothY = smoothY * 0.7 + centerY * 0.3;
-      smoothAngle = smoothAngle * 0.7 + angle * 0.3;
-    }
+    let angle = Math.atan2(y2 - y1, x2 - x1);
+    let depth = getDepthScale(lm);
+
+    let width = Math.hypot(x2 - x1, y2 - y1) * 2.2 * depth * userScale;
+    let height = width * (productImg.height / productImg.width);
+
+    updateSmooth(centerX, centerY, angle, depth);
 
     ctx.save();
-    ctx.translate(smoothX, smoothY);
-    ctx.rotate(smoothAngle);
+    ctx.translate(smooth.x, smooth.y);
+    ctx.rotate(smooth.angle);
     ctx.drawImage(productImg, -width / 2, -height / 2, width, height);
     ctx.restore();
   }
 
-  function drawCap(landmarks) {
-    const forehead = landmarks[10];
-    const chin = landmarks[152];
-    if (!forehead || !chin) return;
+  // 🎯 MASK
+  function drawMask(lm) {
+    const nose = lm[1];
+    const chin = lm[152];
 
-    const faceHeight = (chin.y - forehead.y) * canvas.height;
-    const leftTemple = landmarks[356];
-    const rightTemple = landmarks[127];
-    let faceWidth = 180;
-    if (leftTemple && rightTemple) {
-      faceWidth = (rightTemple.x - leftTemple.x) * canvas.width;
-    }
+    let x = nose.x * canvas.width;
+    let y = nose.y * canvas.height;
 
-    let capWidth = faceWidth * 1.2 * userScale;
-    let capHeight = capWidth * (productImg.height / productImg.width);
+    let faceHeight = (chin.y - nose.y) * canvas.height;
+    let width = faceHeight * 1.5 * userScale;
+    let height = width * (productImg.height / productImg.width);
+
+    ctx.drawImage(productImg, x - width / 2, y - height / 3, width, height);
+  }
+
+  // 🎯 NECKLACE
+  function drawNecklace(lm) {
+    const left = lm[234];
+    const right = lm[454];
+    const chin = lm[152];
+
+    let centerX = ((left.x + right.x) / 2) * canvas.width;
+    let centerY = chin.y * canvas.height + 30;
+
+    let width = Math.abs((right.x - left.x) * canvas.width) * 1.8;
+    let height = width * (productImg.height / productImg.width);
+
+    ctx.drawImage(productImg, centerX - width / 2, centerY, width, height);
+  }
+
+  // 🎯 CAP
+  function drawCap(lm) {
+    const forehead = lm[10];
+    const chin = lm[152];
+
+    let faceHeight = (chin.y - forehead.y) * canvas.height;
+
     let x = forehead.x * canvas.width;
-    let y = forehead.y * canvas.height - faceHeight * 0.35;
+    let y = forehead.y * canvas.height - faceHeight * 0.6;
 
-    if (!hasPrev) {
-      smoothX = x;
-      smoothY = y;
-      hasPrev = true;
-    } else {
-      smoothX = smoothX * 0.7 + x * 0.3;
-      smoothY = smoothY * 0.7 + y * 0.3;
-    }
+    let width = faceHeight * 1.6 * userScale;
+    let height = width * (productImg.height / productImg.width);
 
-    ctx.save();
-    ctx.translate(smoothX, smoothY);
-    ctx.drawImage(
-      productImg,
-      -capWidth / 2,
-      -capHeight / 2,
-      capWidth,
-      capHeight,
-    );
-    ctx.restore();
+    ctx.drawImage(productImg, x - width / 2, y - height / 2, width, height);
   }
 
-  function drawWig(landmarks) {
-    const forehead = landmarks[10];
-    const chin = landmarks[152];
-    if (!forehead || !chin) return;
-
-    const faceHeight = (chin.y - forehead.y) * canvas.height;
-    let wigWidth = faceHeight * 0.9 * userScale;
-    let wigHeight = wigWidth * (productImg.height / productImg.width);
-    let x = forehead.x * canvas.width;
-    let y = forehead.y * canvas.height - faceHeight * 0.2;
-
-    if (!hasPrev) {
-      smoothX = x;
-      smoothY = y;
-      hasPrev = true;
+  function updateSmooth(x, y, angle, scale) {
+    if (!smooth.init) {
+      smooth.x = x;
+      smooth.y = y;
+      smooth.angle = angle;
+      smooth.scale = scale;
+      smooth.init = true;
     } else {
-      smoothX = smoothX * 0.7 + x * 0.3;
-      smoothY = smoothY * 0.7 + y * 0.3;
+      smooth.x = lerp(smooth.x, x);
+      smooth.y = lerp(smooth.y, y);
+      smooth.angle = lerp(smooth.angle, angle);
+      smooth.scale = lerp(smooth.scale, scale);
     }
-
-    ctx.save();
-    ctx.translate(smoothX, smoothY);
-    ctx.drawImage(
-      productImg,
-      -wigWidth / 2,
-      -wigHeight / 2,
-      wigWidth,
-      wigHeight,
-    );
-    ctx.restore();
   }
 
-  function drawEarrings(landmarks) {
-    const leftEarRaw = landmarks[234];
-    const rightEarRaw = landmarks[454];
-    if (!leftEarRaw || !rightEarRaw) return;
+  function render(results) {
+    drawFrame();
 
-    let lx = leftEarRaw.x * canvas.width;
-    let ly = leftEarRaw.y * canvas.height;
-    let rx = rightEarRaw.x * canvas.width;
-    let ry = rightEarRaw.y * canvas.height;
+    if (!productLoaded) return;
 
-    if (!earHasPrev) {
-      leftEarX = lx;
-      leftEarY = ly;
-      rightEarX = rx;
-      rightEarY = ry;
-      earHasPrev = true;
-    } else {
-      leftEarX = leftEarX * 0.7 + lx * 0.3;
-      leftEarY = leftEarY * 0.7 + ly * 0.3;
-      rightEarX = rightEarX * 0.7 + rx * 0.3;
-      rightEarY = rightEarY * 0.7 + ry * 0.3;
-    }
-
-    let earSize = 50 * userScale;
-    const leftEye = landmarks[33];
-    const rightEye = landmarks[263];
-    if (leftEye && rightEye) {
-      const eyeDist = Math.hypot(
-        (rightEye.x - leftEye.x) * canvas.width,
-        (rightEye.y - leftEye.y) * canvas.height,
-      );
-      earSize = eyeDist * 0.6 * userScale;
-    }
-
-    ctx.drawImage(
-      productImg,
-      leftEarX - earSize / 2,
-      leftEarY - earSize / 2,
-      earSize,
-      earSize,
-    );
-    ctx.drawImage(
-      productImg,
-      rightEarX - earSize / 2,
-      rightEarY - earSize / 2,
-      earSize,
-      earSize,
-    );
-  }
-
-  // ---------- FaceMesh callback (main render) ----------
-  function onFaceMeshResults(results) {
-    // 1. Always draw video background first (stops blinking)
-    drawVideoOnCanvas();
-
-    // 2. If product not loaded, show message and exit
-    if (!productLoaded) {
-      ctx.fillStyle = "rgba(255,255,255,0.8)";
-      ctx.font = "16px sans-serif";
-      ctx.fillText("Loading product...", 20, 50);
-      return;
-    }
-
-    // 3. Check for face
     const faces = results.multiFaceLandmarks;
-    if (!faces || faces.length === 0) {
-      ctx.fillStyle = "rgba(255,255,255,0.7)";
-      ctx.font = "14px sans-serif";
-      ctx.fillText(
-        "No face detected",
-        canvas.width / 2 - 60,
-        canvas.height - 30,
-      );
-      return;
-    }
+    if (!faces || faces.length === 0) return;
 
-    const landmarks = faces[0];
+    const lm = faces[0];
 
-    // 4. Draw product based on type
     switch (productType) {
       case "glasses":
-        drawGlasses(landmarks);
+        drawGlasses(lm);
+        break;
+      case "mask":
+        drawMask(lm);
+        break;
+      case "necklace":
+        drawNecklace(lm);
         break;
       case "cap":
-        drawCap(landmarks);
+        drawCap(lm);
         break;
-      case "wig":
-        drawWig(landmarks);
-        break;
-      case "earring":
-        drawEarrings(landmarks);
-        break;
-      default:
-        ctx.fillStyle = "white";
-        ctx.font = "16px sans-serif";
-        ctx.fillText("Unknown product type", 20, 80);
     }
   }
 
-  // ---------- Initialize MediaPipe and Camera ----------
-  async function initFaceMesh() {
-    faceMesh = new FaceMesh({
+  async function init() {
+    const faceMesh = new FaceMesh({
       locateFile: (file) =>
         `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
     });
@@ -331,84 +189,46 @@
     faceMesh.setOptions({
       maxNumFaces: 1,
       refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.6,
     });
 
-    faceMesh.onResults(onFaceMeshResults);
+    faceMesh.onResults(render);
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+    });
+
+    video.srcObject = stream;
+
+    video.onloadedmetadata = () => {
+      video.play();
+      resizeCanvas();
+
+      const camera = new Camera(video, {
+        onFrame: async () => {
+          await faceMesh.send({ image: video });
+        },
       });
-      video.srcObject = stream;
 
-      // Wait for video metadata to set initial size
-      video.addEventListener("loadedmetadata", () => {
-        video.play();
-        resizeCanvasIfNeeded();
-
-        // Start CameraUtils after video is ready
-        camera = new Camera(video, {
-          onFrame: async () => {
-            // Only resize if needed (not every frame)
-            resizeCanvasIfNeeded();
-            if (faceMesh && video.videoWidth > 0) {
-              await faceMesh.send({ image: video });
-            }
-          },
-          width: video.videoWidth,
-          height: video.videoHeight,
-        });
-        camera.start();
-      });
-    } catch (err) {
-      console.error("Camera error:", err);
-      statusHint.innerText = "❌ Camera access denied";
-    }
+      camera.start();
+    };
   }
 
-  // Also resize on window resize / orientation change
-  window.addEventListener("resize", () => {
-    if (video.videoWidth) resizeCanvasIfNeeded();
-  });
+  // 📱 MOBILE RESPONSIVE FIX
+  window.addEventListener("resize", resizeCanvas);
 
-  // ---------- Exposed UI functions ----------
-  window.changeSize = function (delta) {
-    let newScale = userScale + delta;
-    if (newScale < 0.4) newScale = 0.4;
-    if (newScale > 2.2) newScale = 2.2;
-    userScale = newScale;
-    statusHint.innerText = `Size: ${Math.round(userScale * 100)}%`;
-    setTimeout(() => {
-      if (statusHint.innerText.includes("Size"))
-        statusHint.innerText = "Use +/− to adjust";
-    }, 1200);
+  // 🎛 UI Controls
+  window.changeSize = function (d) {
+    userScale = Math.min(2.5, Math.max(0.5, userScale + d));
   };
 
   window.capturePhoto = function () {
-    drawVideoOnCanvas(); // ensure latest frame
-    setTimeout(() => {
-      const link = document.createElement("a");
-      link.download = `tryon_${productType}_${Date.now()}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
-      statusHint.innerText = "📸 Screenshot saved!";
-      setTimeout(() => {
-        if (statusHint.innerText === "📸 Screenshot saved!")
-          statusHint.innerText = "";
-      }, 1500);
-    }, 50);
+    const link = document.createElement("a");
+    link.download = "tryon.png";
+    link.href = canvas.toDataURL();
+    link.click();
   };
 
-  window.goBack = function () {
-    if (video.srcObject) {
-      video.srcObject.getTracks().forEach((track) => track.stop());
-    }
-    if (camera) camera.stop();
-    window.history.back();
-  };
-
-  // Start everything
-  initFaceMesh();
+  init();
 })();
