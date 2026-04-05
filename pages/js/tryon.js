@@ -1,11 +1,12 @@
-// tryon.js – Perfect face fitting with manual adjustments
+// tryon.js – Snapchat-like face tracking & perfect fitting
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
+// ----- DOM elements -----
 const video = document.getElementById("video");
 const canvas = document.getElementById("threeCanvas");
 
-// ---------- UI messaging ----------
+// ----- UI messaging -----
 function showStatus(msg, isError = false) {
   let el = document.getElementById("statusMsg");
   if (!el) {
@@ -22,37 +23,30 @@ function showStatus(msg, isError = false) {
     el.style.textAlign = "center";
     el.style.fontSize = "14px";
     el.style.zIndex = "100";
-    el.style.fontFamily = "sans-serif";
     document.body.appendChild(el);
   }
   el.textContent = msg;
   el.style.backgroundColor = isError ? "rgba(200,0,0,0.8)" : "rgba(0,0,0,0.7)";
-  setTimeout(() => {
-    if (el && el.parentNode) el.style.display = "none";
-  }, 4000);
+  setTimeout(() => (el.style.display = "none"), 4000);
   el.style.display = "block";
 }
 
-// ---------- Get product from localStorage ----------
+// ----- Get product from localStorage -----
 let modelPath, productType;
 try {
   modelPath = localStorage.getItem("selectedModel");
   productType = localStorage.getItem("productType");
 } catch (e) {
-  console.warn("localStorage blocked");
-  showStatus(
-    "Storage access blocked. Please disable tracking prevention.",
-    true,
-  );
+  showStatus("⚠️ Storage access blocked. Disable tracking prevention.", true);
 }
 
 if (!modelPath) {
-  showStatus("No product selected. Go back and choose one.", true);
+  showStatus("❌ No product selected. Go back.", true);
 } else {
-  showStatus(`Loading ${productType || "product"}...`, false);
+  showStatus(`✨ Loading ${productType || "product"}...`, false);
 }
 
-// ---------- Three.js setup ----------
+// ----- Three.js setup -----
 const scene = new THREE.Scene();
 const camera3D = new THREE.PerspectiveCamera(
   70,
@@ -75,177 +69,230 @@ scene.add(new THREE.AmbientLight(0x404060));
 const mainLight = new THREE.DirectionalLight(0xffffff, 1);
 mainLight.position.set(1, 2, 1);
 scene.add(mainLight);
-scene.add(new THREE.DirectionalLight(0xffaa88, 0.5).position.set(-0.5, 1, 1.5));
+const fillLight = new THREE.DirectionalLight(0xffaa88, 0.5);
+fillLight.position.set(-0.5, 1, 1.5);
+scene.add(fillLight);
 
+// ----- Model variables -----
 let model = null;
+let baseScale = 1;
 let userScale = 1;
-let userOffset = { x: 0, y: 0, z: 0 }; // manual fine-tuning
+let userOffset = { x: 0, y: 0, z: 0 };
 let userRotZ = 0;
 
 // Smoothing
 let smoothPos = { x: 0, y: 0, z: 0, init: false };
 let smoothRotZ = 0;
 
-// Landmark indices
-const NOSE = 1;
-const LEFT_EYE = 33;
-const RIGHT_EYE = 263;
-const FOREHEAD = 10; // between eyebrows
-const CHIN = 152;
-const LEFT_EAR = 234;
-const RIGHT_EAR = 454;
+// ----- Face landmark indices (MediaPipe 468-point mesh) -----
+const LANDMARKS = {
+  NOSE_TIP: 1,
+  NOSE_BRIDGE: 168,
+  LEFT_EYE_OUTER: 33,
+  RIGHT_EYE_OUTER: 263,
+  LEFT_EYE_INNER: 133,
+  RIGHT_EYE_INNER: 362,
+  FOREHEAD_TOP: 10,
+  LEFT_EAR: 234,
+  RIGHT_EAR: 454,
+  CHIN: 152,
+  LIP_UPPER: 13,
+};
 
-// Product anchor points (normalized face coordinates, 0-1 range)
+// ----- Product anchors (normalized face coordinates, 0-1 range) -----
 const ANCHORS = {
-  glasses: { x: 0.5, y: 0.45, z: 0.02 }, // bridge of nose
-  cap: { x: 0.5, y: 0.25, z: 0.05 }, // top forehead
-  wig: { x: 0.5, y: 0.2, z: 0.05 }, // top of head
-  earring: { x: 0.5, y: 0.55, z: 0.03 }, // earlobe level
-  default: { x: 0.5, y: 0.5, z: 0.0 },
+  glasses: {
+    landmark: LANDMARKS.NOSE_BRIDGE,
+    offsetX: 0,
+    offsetY: 0,
+    offsetZ: 0.02,
+    scaleFactor: 1.2,
+  },
+  cap: {
+    landmark: LANDMARKS.FOREHEAD_TOP,
+    offsetX: 0,
+    offsetY: -0.03,
+    offsetZ: 0.05,
+    scaleFactor: 1.0,
+  },
+  wig: {
+    landmark: LANDMARKS.FOREHEAD_TOP,
+    offsetX: 0,
+    offsetY: -0.08,
+    offsetZ: 0.05,
+    scaleFactor: 1.1,
+  },
+  earring: {
+    landmark: LANDMARKS.LEFT_EAR,
+    offsetX: -0.1,
+    offsetY: 0.02,
+    offsetZ: 0.0,
+    scaleFactor: 0.7,
+  }, // left earring; right one is mirrored
+  default: {
+    landmark: LANDMARKS.NOSE_TIP,
+    offsetX: 0,
+    offsetY: 0,
+    offsetZ: 0,
+    scaleFactor: 1.0,
+  },
 };
 
 let anchor = ANCHORS[productType] || ANCHORS.default;
 
-// Load GLB
+// For earrings, we need two instances (left and right). We'll handle separately.
+let leftEarring = null;
+let rightEarring = null;
+
+// ----- Load 3D model -----
 if (modelPath) {
   const loader = new GLTFLoader();
   loader.load(
     modelPath,
     (gltf) => {
-      model = gltf.scene;
-      // Center and initial scale based on model size
-      const box = new THREE.Box3().setFromObject(model);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3()).length();
-      model.position.sub(center);
-      let baseScale = 1.8 / size;
-      // Adjust for product type
-      if (productType === "earring") baseScale *= 0.6;
-      if (productType === "glasses") baseScale *= 1.2;
-      model.scale.set(baseScale, baseScale, baseScale);
-      userScale = baseScale;
-      scene.add(model);
-      showStatus("Model ready", false);
+      if (productType === "earring") {
+        // For earrings, clone the model for both sides
+        leftEarring = gltf.scene.clone();
+        rightEarring = gltf.scene.clone();
+        scene.add(leftEarring);
+        scene.add(rightEarring);
+        model = leftEarring; // just a reference for scaling UI
+        // Auto-scale once based on model size
+        const box = new THREE.Box3().setFromObject(leftEarring);
+        const size = box.getSize(new THREE.Vector3()).length();
+        baseScale = (0.15 / size) * (anchor.scaleFactor || 1);
+        leftEarring.scale.set(baseScale, baseScale, baseScale);
+        rightEarring.scale.set(baseScale, baseScale, baseScale);
+        userScale = baseScale;
+        showStatus("✅ Earrings loaded", false);
+      } else {
+        model = gltf.scene;
+        // Auto-center and scale
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3()).length();
+        model.position.sub(center);
+        baseScale = (1.8 / size) * (anchor.scaleFactor || 1);
+        model.scale.set(baseScale, baseScale, baseScale);
+        userScale = baseScale;
+        scene.add(model);
+        showStatus("✅ Model loaded", false);
+      }
     },
     undefined,
     (err) => {
       console.error(err);
-      showStatus("Failed to load 3D model", true);
+      showStatus("❌ Failed to load 3D model", true);
     },
   );
 }
 
-// Helper: get face bounding box and key points
-function getFaceMetrics(landmarks) {
-  const xs = landmarks.map((l) => l.x);
-  const ys = landmarks.map((l) => l.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const width = maxX - minX;
-  const height = maxY - minY;
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-  // Estimate depth from face width
-  const depth = -2 + width * 2.5;
-  return { centerX, centerY, width, height, depth };
+// ----- Helper: get 3D position of a landmark (converted to Three.js coordinates) -----
+function getLandmarkPosition(landmark) {
+  // MediaPipe gives x,y,z in normalized coordinates (0..1 for x,y; z is depth in meters)
+  // Convert to Three.js space: x: -1..1, y: -1..1, z: -2..2 roughly
+  const x = (landmark.x - 0.5) * 2;
+  const y = -(landmark.y - 0.5) * 2;
+  const z = -landmark.z * 2.5; // depth adjustment
+  return new THREE.Vector3(x, y, z);
 }
 
-// Update model position based on face and anchor
-function updateModelFromFace(landmarks) {
-  if (!model) return;
+// ----- Update model(s) based on face landmarks -----
+function updateModelsFromFace(landmarks) {
+  if (!model && productType !== "earring") return;
 
-  // Get the specific anchor point from landmarks
-  let targetX, targetY;
-  if (productType === "glasses") {
-    // Use nose bridge
-    targetX = landmarks[NOSE].x;
-    targetY = landmarks[NOSE].y;
-  } else if (productType === "cap" || productType === "wig") {
-    // Use forehead (midpoint between eyes and top of head)
-    const eyeY = (landmarks[LEFT_EYE].y + landmarks[RIGHT_EYE].y) / 2;
-    const topY = Math.min(...landmarks.map((l) => l.y));
-    targetY = (eyeY + topY) / 2;
-    targetX = landmarks[NOSE].x;
-  } else if (productType === "earring") {
-    // Use earlobe area (around landmark 234 for left ear, but we average)
-    targetX = landmarks[LEFT_EAR].x;
-    targetY = landmarks[LEFT_EAR].y + 0.02;
-  } else {
-    targetX = landmarks[NOSE].x;
-    targetY = landmarks[NOSE].y;
-  }
+  // Get the anchor landmark position
+  const anchorLandmark = landmarks[anchor.landmark];
+  if (!anchorLandmark) return;
 
-  // Convert to Three.js coordinates (-1..1 for X, -1..1 for Y)
-  let targetPosX = (targetX - 0.5) * 2;
-  let targetPosY = -(targetY - 0.5) * 2;
+  let targetPos = getLandmarkPosition(anchorLandmark);
+  targetPos.x += anchor.offsetX;
+  targetPos.y += anchor.offsetY;
+  targetPos.z += anchor.offsetZ;
 
-  // Depth based on face width
-  const faceWidth = Math.hypot(
-    landmarks[RIGHT_EYE].x - landmarks[LEFT_EYE].x,
-    landmarks[RIGHT_EYE].y - landmarks[LEFT_EYE].y,
-  );
-  let targetPosZ = -2 + faceWidth * 2.2;
+  // Add user offsets
+  targetPos.x += userOffset.x;
+  targetPos.y += userOffset.y;
+  targetPos.z += userOffset.z;
 
-  // Apply anchor offsets (in normalized space)
-  targetPosX += (anchor.x - 0.5) * 0.5;
-  targetPosY += (anchor.y - 0.5) * 0.8;
-  targetPosZ += anchor.z;
+  // Dynamic scale based on interocular distance (distance between outer eye corners)
+  const leftEye = landmarks[LANDMARKS.LEFT_EYE_OUTER];
+  const rightEye = landmarks[LANDMARKS.RIGHT_EYE_OUTER];
+  const eyeDist = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y);
+  // Scale factor: closer face = larger model
+  const dynamicScale = 0.8 + eyeDist * 1.5;
+  const finalScale = baseScale * userScale * dynamicScale;
 
-  // Add manual user offsets
-  targetPosX += userOffset.x;
-  targetPosY += userOffset.y;
-  targetPosZ += userOffset.z;
-
-  // Smooth movement
+  // Smooth position
   if (!smoothPos.init) {
-    smoothPos = { x: targetPosX, y: targetPosY, z: targetPosZ, init: true };
+    smoothPos = { x: targetPos.x, y: targetPos.y, z: targetPos.z, init: true };
   } else {
-    smoothPos.x += (targetPosX - smoothPos.x) * 0.3;
-    smoothPos.y += (targetPosY - smoothPos.y) * 0.3;
-    smoothPos.z += (targetPosZ - smoothPos.z) * 0.3;
+    smoothPos.x += (targetPos.x - smoothPos.x) * 0.3;
+    smoothPos.y += (targetPos.y - smoothPos.y) * 0.3;
+    smoothPos.z += (targetPos.z - smoothPos.z) * 0.3;
   }
-  model.position.set(smoothPos.x, smoothPos.y, smoothPos.z);
 
-  // Rotation: only Z (roll) for now, plus manual
-  let roll = Math.atan2(
-    landmarks[RIGHT_EYE].y - landmarks[LEFT_EYE].y,
-    landmarks[RIGHT_EYE].x - landmarks[LEFT_EYE].x,
-  );
-  smoothRotZ += (roll * 0.5 + userRotZ - smoothRotZ) * 0.3;
-  model.rotation.z = smoothRotZ;
+  // Rotation: head roll (Z axis)
+  const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+  smoothRotZ += (roll * 0.6 + userRotZ - smoothRotZ) * 0.3;
+
+  if (productType === "earring") {
+    if (leftEarring && rightEarring) {
+      // Left earring uses left ear landmark (234)
+      const leftEarPos = getLandmarkPosition(landmarks[LANDMARKS.LEFT_EAR]);
+      leftEarPos.x += userOffset.x - 0.12;
+      leftEarPos.y += userOffset.y + 0.02;
+      leftEarring.position.copy(leftEarPos);
+      leftEarring.rotation.z = smoothRotZ;
+      leftEarring.scale.set(finalScale, finalScale, finalScale);
+
+      // Right earring uses right ear landmark (454)
+      const rightEarPos = getLandmarkPosition(landmarks[LANDMARKS.RIGHT_EAR]);
+      rightEarPos.x += userOffset.x + 0.12;
+      rightEarPos.y += userOffset.y + 0.02;
+      rightEarring.position.copy(rightEarPos);
+      rightEarring.rotation.z = smoothRotZ;
+      rightEarring.scale.set(finalScale, finalScale, finalScale);
+    }
+  } else if (model) {
+    model.position.set(smoothPos.x, smoothPos.y, smoothPos.z);
+    model.rotation.z = smoothRotZ;
+    model.scale.set(finalScale, finalScale, finalScale);
+  }
 }
 
-// ---------- MediaPipe FaceMesh ----------
-let faceMesh, mediapipeCamera;
+// ----- MediaPipe FaceMesh setup -----
+let faceMesh, cameraHelper;
 
 function initFaceTracking() {
   if (typeof FaceMesh === "undefined" || typeof Camera === "undefined") {
-    showStatus("MediaPipe not loaded. Check internet.", true);
+    showStatus("❌ MediaPipe not loaded. Check internet.", true);
     return;
   }
   faceMesh = new FaceMesh({
-    locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+    locateFile: (file) =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
   });
   faceMesh.setOptions({
     maxNumFaces: 1,
     refineLandmarks: true,
     minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
   });
-  faceMesh.onResults((res) => {
-    if (res.multiFaceLandmarks?.length)
-      updateModelFromFace(res.multiFaceLandmarks[0]);
+  faceMesh.onResults((results) => {
+    if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+      updateModelsFromFace(results.multiFaceLandmarks[0]);
+    }
   });
-  mediapipeCamera = new Camera(video, {
+  cameraHelper = new Camera(video, {
     onFrame: async () => faceMesh && (await faceMesh.send({ image: video })),
     width: 640,
     height: 480,
   });
-  mediapipeCamera
+  cameraHelper
     .start()
     .then(() => {
-      showStatus("Camera active", false);
+      showStatus("📷 Camera active – look at the screen", false);
       video.style.transform = "scaleX(-1)";
     })
     .catch((err) => showStatus("Camera error: " + err.message, true));
@@ -255,7 +302,7 @@ document.readyState === "loading"
   ? document.addEventListener("DOMContentLoaded", initFaceTracking)
   : initFaceTracking();
 
-// Animation
+// ----- Animation loop -----
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera3D);
@@ -268,27 +315,28 @@ window.addEventListener("resize", () => {
   camera3D.updateProjectionMatrix();
 });
 
-// Manual adjustment panel
+// ----- Manual adjustment UI (sliders) -----
 function createAdjustmentUI() {
   const panel = document.createElement("div");
   panel.style.position = "fixed";
   panel.style.bottom = "80px";
   panel.style.right = "10px";
-  panel.style.backgroundColor = "rgba(0,0,0,0.7)";
+  panel.style.backgroundColor = "rgba(0,0,0,0.8)";
   panel.style.color = "white";
-  panel.style.padding = "10px";
-  panel.style.borderRadius = "8px";
+  panel.style.padding = "12px";
+  panel.style.borderRadius = "12px";
   panel.style.zIndex = "200";
   panel.style.fontSize = "12px";
   panel.style.fontFamily = "sans-serif";
+  panel.style.backdropFilter = "blur(4px)";
   panel.innerHTML = `
-    <div style="margin-bottom:5px"><strong>Adjust Fit</strong></div>
-    X: <input type="range" id="adjX" min="-0.5" max="0.5" step="0.01" value="0"> 
+    <div style="margin-bottom:8px"><strong>🔧 Fine-tune fit</strong></div>
+    X: <input type="range" id="adjX" min="-0.5" max="0.5" step="0.01" value="0">
     Y: <input type="range" id="adjY" min="-0.5" max="0.5" step="0.01" value="0"><br>
     Z: <input type="range" id="adjZ" min="-0.3" max="0.3" step="0.01" value="0">
     Scale: <input type="range" id="adjScale" min="0.5" max="2.0" step="0.01" value="1"><br>
-    Rotate: <input type="range" id="adjRot" min="-0.5" max="0.5" step="0.01" value="0">
-    <button id="resetAdj" style="margin-top:5px; background:#38bdf8">Reset</button>
+    Rotate: <input type="range" id="adjRot" min="-0.8" max="0.8" step="0.01" value="0">
+    <button id="resetAdj" style="margin-top:8px; background:#38bdf8; border:none; border-radius:20px; padding:5px 12px;">Reset</button>
   `;
   document.body.appendChild(panel);
 
@@ -309,12 +357,7 @@ function createAdjustmentUI() {
     userOffset.z = parseFloat(zSlider.value);
   };
   scaleSlider.oninput = () => {
-    if (model)
-      model.scale.set(
-        userScale * parseFloat(scaleSlider.value),
-        userScale * parseFloat(scaleSlider.value),
-        userScale * parseFloat(scaleSlider.value),
-      );
+    userScale = parseFloat(scaleSlider.value);
   };
   rotSlider.oninput = () => {
     userRotZ = parseFloat(rotSlider.value);
@@ -326,17 +369,17 @@ function createAdjustmentUI() {
     scaleSlider.value = "1";
     rotSlider.value = "0";
     userOffset = { x: 0, y: 0, z: 0 };
+    userScale = 1;
     userRotZ = 0;
-    if (model) model.scale.set(userScale, userScale, userScale);
   };
 }
 createAdjustmentUI();
 
-// Legacy buttons
+// ----- Legacy button functions -----
 window.changeSize = (delta) => {
-  if (model) {
+  if (model && productType !== "earring") {
     userScale += delta;
-    model.scale.set(userScale, userScale, userScale);
+    userScale = Math.max(0.3, Math.min(2.5, userScale));
   }
 };
 window.goBack = () => history.back();
