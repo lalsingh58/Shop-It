@@ -5,6 +5,10 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 const video = document.getElementById("video");
 const canvas = document.getElementById("threeCanvas");
 
+// Mirror fix
+video.style.transform = "scaleX(-1)";
+canvas.style.transform = "scaleX(-1)";
+
 // ================= PRODUCT =================
 const selectedModel =
   localStorage.getItem("selectedModel") || "../assets/models/glasses/g1.glb";
@@ -15,7 +19,7 @@ const productType = localStorage.getItem("productType") || "glasses";
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
-  70,
+  45,
   window.innerWidth / window.innerHeight,
   0.01,
   100,
@@ -33,9 +37,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 // ================= LIGHT =================
 scene.add(new THREE.AmbientLight(0xffffff, 1.5));
 
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(0, 1, 2);
-scene.add(light);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(0, 1, 2);
+scene.add(dirLight);
 
 // ================= FACE ANCHOR =================
 const faceAnchor = new THREE.Group();
@@ -43,34 +47,41 @@ scene.add(faceAnchor);
 
 // ================= MODEL =================
 let model = null;
+let baseScale = 1;
+
 const loader = new GLTFLoader();
 
-// ================= OCCLUDER =================
-const occluder = new THREE.Mesh(
-  new THREE.SphereGeometry(0.6, 32, 32),
-  new THREE.MeshBasicMaterial({ colorWrite: false }),
-);
-faceAnchor.add(occluder);
-
-// ================= LOAD MODEL =================
 function loadModel(path) {
   loader.load(path, (gltf) => {
     if (model) faceAnchor.remove(model);
 
     model = gltf.scene;
 
-    // normalize
+    // Normalize model size
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3()).length();
-    model.scale.setScalar(1 / size);
+
+    baseScale = 1 / size;
+    model.scale.setScalar(baseScale);
 
     faceAnchor.add(model);
   });
 }
 
-// ================= POSITION =================
-function getPos(p, w, h) {
-  return new THREE.Vector3((p.x / w) * 2 - 1, 1 - (p.y / h) * 2, -p.z * 1.5);
+// ================= OCCLUDER =================
+const occluder = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 32, 32),
+  new THREE.MeshBasicMaterial({ colorWrite: false }),
+);
+faceAnchor.add(occluder);
+
+// ================= UTILS =================
+function getNormalized(p, w, h) {
+  return new THREE.Vector3(
+    (p.x - w / 2) / (w / 2),
+    -(p.y - h / 2) / (h / 2),
+    -p.z * 1.5,
+  );
 }
 
 // ================= SMOOTH =================
@@ -81,77 +92,54 @@ const smoothRot = new THREE.Euler();
 function updateModel(lm, w, h) {
   if (!model) return;
 
-  const leftEye = getPos(lm[33], w, h);
-  const rightEye = getPos(lm[263], w, h);
-  const nose = getPos(lm[1], w, h);
-  const forehead = getPos(lm[10], w, h);
-  const leftEar = getPos(lm[234], w, h);
-  const rightEar = getPos(lm[454], w, h);
+  const leftEye = getNormalized(lm[33], w, h);
+  const rightEye = getNormalized(lm[263], w, h);
+  const nose = getNormalized(lm[1], w, h);
+  const forehead = getNormalized(lm[10], w, h);
+  const leftEar = getNormalized(lm[234], w, h);
+  const rightEar = getNormalized(lm[454], w, h);
 
   const faceWidth = leftEar.distanceTo(rightEar);
 
-  // ===== HEAD POSITION =====
+  // ===== POSITION =====
   const center = new THREE.Vector3()
     .addVectors(leftEye, rightEye)
     .multiplyScalar(0.5);
 
-  center.z = nose.z - 0.5;
+  center.z = nose.z * 1.5;
 
-  smoothPos.lerp(center, 0.6);
+  smoothPos.lerp(center, 0.5);
   faceAnchor.position.copy(smoothPos);
 
   // ===== ROTATION =====
   const rotZ = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
 
-  const rotY = (rightEye.z - leftEye.z) * 3;
+  const rotY = (rightEye.z - leftEye.z) * 2;
   const rotX = (nose.y - forehead.y) * 2;
 
-  smoothRot.x += (rotX - smoothRot.x) * 0.5;
-  smoothRot.y += (rotY - smoothRot.y) * 0.5;
-  smoothRot.z += (rotZ - smoothRot.z) * 0.5;
+  smoothRot.x += (rotX - smoothRot.x) * 0.4;
+  smoothRot.y += (rotY - smoothRot.y) * 0.4;
+  smoothRot.z += (rotZ - smoothRot.z) * 0.4;
 
   faceAnchor.rotation.copy(smoothRot);
 
-  const baseScale = faceWidth;
+  // ===== SCALE =====
+  const finalScale = baseScale * faceWidth * 2;
 
-  // ===== PRODUCT ALIGNMENT =====
+  // ===== PRODUCT TYPES =====
   if (productType === "glasses") {
     model.position.set(0, -0.03, 0.15);
-    model.scale.setScalar(baseScale * 1.8);
-    occluder.scale.set(1, 1.2, 1);
+    model.scale.setScalar(finalScale * 1.2);
+    occluder.scale.set(faceWidth * 1.2, faceWidth * 1.4, faceWidth);
   } else if (productType === "cap") {
-    model.position.set(0, 0.45, -0.4);
-    model.scale.setScalar(baseScale * 3.2);
-    occluder.scale.set(1.3, 1.5, 1.3);
+    model.position.set(0, 0.5, -0.4);
+    model.scale.setScalar(finalScale * 2.5);
+    occluder.scale.set(faceWidth * 1.3, faceWidth * 1.6, faceWidth);
   } else if (productType === "wig") {
-    model.position.set(0, 0.35, -0.5);
-    model.scale.setScalar(baseScale * 3.5);
-    occluder.scale.set(1.4, 1.6, 1.4);
-  } else if (productType === "earring") {
-    updateEarrings(leftEar, rightEar, baseScale);
+    model.position.set(0, 0.4, -0.5);
+    model.scale.setScalar(finalScale * 3);
+    occluder.scale.set(faceWidth * 1.4, faceWidth * 1.7, faceWidth);
   }
-}
-
-// ================= EARRINGS =================
-let leftEarring = null;
-let rightEarring = null;
-
-function updateEarrings(leftEar, rightEar, scaleBase) {
-  if (!leftEarring) {
-    leftEarring = model;
-    rightEarring = model.clone();
-
-    scene.add(leftEarring);
-    scene.add(rightEarring);
-  }
-
-  const scale = scaleBase * 0.8;
-
-  leftEarring.scale.setScalar(scale);
-  rightEarring.scale.setScalar(scale);
-
-  leftEarring.position.lerp(leftEar, 0.6);
-  rightEarring.position.lerp(rightEar, 0.6);
 }
 
 // ================= AI =================
