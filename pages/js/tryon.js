@@ -4,27 +4,23 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 // ================= DOM =================
 const video = document.getElementById("video");
 const canvas = document.getElementById("threeCanvas");
-const faceLabel = document.getElementById("faceLabel");
 
 // ================= PRODUCT =================
-let selectedModel = localStorage.getItem("selectedModel");
-let productType = localStorage.getItem("productType");
+const selectedModel =
+  localStorage.getItem("selectedModel") || "../assets/models/glasses/g1.glb";
 
-if (!selectedModel) {
-  selectedModel = "../assets/models/glasses/g1.glb";
-  productType = "glasses";
-}
+const productType = localStorage.getItem("productType") || "glasses";
 
 // ================= THREE =================
 const scene = new THREE.Scene();
 
-const camera3D = new THREE.PerspectiveCamera(
+const camera = new THREE.PerspectiveCamera(
   70,
   window.innerWidth / window.innerHeight,
   0.01,
   100,
 );
-camera3D.position.z = 2;
+camera.position.z = 2;
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -37,31 +33,24 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 // ================= LIGHT =================
 scene.add(new THREE.AmbientLight(0xffffff, 1.5));
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(0, 1, 2);
-scene.add(dirLight);
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(0, 1, 2);
+scene.add(light);
 
 // ================= FACE ANCHOR =================
-let faceAnchor = new THREE.Group();
+const faceAnchor = new THREE.Group();
 scene.add(faceAnchor);
 
 // ================= MODEL =================
 let model = null;
-let loader = new GLTFLoader();
+const loader = new GLTFLoader();
 
-// ================= OCCLUSION MESH =================
-let occluder = null;
-
-function createOccluder() {
-  const geometry = new THREE.SphereGeometry(0.6, 32, 32);
-
-  const material = new THREE.MeshBasicMaterial({
-    colorWrite: false, // invisible but blocks
-  });
-
-  occluder = new THREE.Mesh(geometry, material);
-  faceAnchor.add(occluder);
-}
+// ================= OCCLUDER =================
+const occluder = new THREE.Mesh(
+  new THREE.SphereGeometry(0.6, 32, 32),
+  new THREE.MeshBasicMaterial({ colorWrite: false }),
+);
+faceAnchor.add(occluder);
 
 // ================= LOAD MODEL =================
 function loadModel(path) {
@@ -70,16 +59,12 @@ function loadModel(path) {
 
     model = gltf.scene;
 
-    // normalize model
+    // normalize
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3()).length();
     model.scale.setScalar(1 / size);
 
     faceAnchor.add(model);
-
-    createOccluder();
-
-    console.log("✅ Model loaded");
   });
 }
 
@@ -89,8 +74,8 @@ function getPos(p, w, h) {
 }
 
 // ================= SMOOTH =================
-let smoothPos = new THREE.Vector3();
-let smoothRot = new THREE.Euler();
+const smoothPos = new THREE.Vector3();
+const smoothRot = new THREE.Euler();
 
 // ================= UPDATE =================
 function updateModel(lm, w, h) {
@@ -105,7 +90,7 @@ function updateModel(lm, w, h) {
 
   const faceWidth = leftEar.distanceTo(rightEar);
 
-  // ===== HEAD CENTER =====
+  // ===== HEAD POSITION =====
   const center = new THREE.Vector3()
     .addVectors(leftEye, rightEye)
     .multiplyScalar(0.5);
@@ -127,25 +112,23 @@ function updateModel(lm, w, h) {
 
   faceAnchor.rotation.copy(smoothRot);
 
-  // ===== PRODUCT OFFSET =====
+  const baseScale = faceWidth;
+
+  // ===== PRODUCT ALIGNMENT =====
   if (productType === "glasses") {
     model.position.set(0, -0.03, 0.15);
-    model.scale.setScalar(faceWidth * 1.8);
-
-    // occlusion fit
+    model.scale.setScalar(baseScale * 1.8);
     occluder.scale.set(1, 1.2, 1);
   } else if (productType === "cap") {
-    model.position.set(0, 0.4, -0.3);
-    model.scale.setScalar(faceWidth * 2.8);
-
-    occluder.scale.set(1.2, 1.4, 1.2);
-  } else if (productType === "wig") {
-    model.position.set(0, 0.3, -0.4);
-    model.scale.setScalar(faceWidth * 3.2);
-
+    model.position.set(0, 0.45, -0.4);
+    model.scale.setScalar(baseScale * 3.2);
     occluder.scale.set(1.3, 1.5, 1.3);
+  } else if (productType === "wig") {
+    model.position.set(0, 0.35, -0.5);
+    model.scale.setScalar(baseScale * 3.5);
+    occluder.scale.set(1.4, 1.6, 1.4);
   } else if (productType === "earring") {
-    handleEarrings(leftEar, rightEar, faceWidth);
+    updateEarrings(leftEar, rightEar, baseScale);
   }
 }
 
@@ -153,7 +136,7 @@ function updateModel(lm, w, h) {
 let leftEarring = null;
 let rightEarring = null;
 
-function handleEarrings(leftEar, rightEar, faceWidth) {
+function updateEarrings(leftEar, rightEar, scaleBase) {
   if (!leftEarring) {
     leftEarring = model;
     rightEarring = model.clone();
@@ -162,7 +145,7 @@ function handleEarrings(leftEar, rightEar, faceWidth) {
     scene.add(rightEarring);
   }
 
-  const scale = faceWidth * 0.8;
+  const scale = scaleBase * 0.8;
 
   leftEarring.scale.setScalar(scale);
   rightEarring.scale.setScalar(scale);
@@ -172,7 +155,7 @@ function handleEarrings(leftEar, rightEar, faceWidth) {
 }
 
 // ================= AI =================
-let detector = null;
+let detector;
 
 async function initAI() {
   await tf.setBackend("webgl");
@@ -181,8 +164,6 @@ async function initAI() {
     faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
     { runtime: "tfjs", maxFaces: 1 },
   );
-
-  console.log("✅ AI Ready");
 }
 
 // ================= CAMERA =================
@@ -193,8 +174,6 @@ async function startCamera() {
 
   video.srcObject = stream;
   await video.play();
-
-  faceLabel.innerText = "✅ Ready";
 }
 
 // ================= LOOP =================
@@ -202,8 +181,7 @@ async function detect() {
   const faces = await detector.estimateFaces(video);
 
   if (faces.length > 0) {
-    const lm = faces[0].keypoints;
-    updateModel(lm, video.videoWidth, video.videoHeight);
+    updateModel(faces[0].keypoints, video.videoWidth, video.videoHeight);
   }
 
   requestAnimationFrame(detect);
@@ -215,7 +193,6 @@ async function init() {
   await initAI();
 
   loadModel(selectedModel);
-
   detect();
 }
 init();
@@ -223,6 +200,13 @@ init();
 // ================= RENDER =================
 function animate() {
   requestAnimationFrame(animate);
-  renderer.render(scene, camera3D);
+  renderer.render(scene, camera);
 }
 animate();
+
+// ================= RESIZE =================
+window.addEventListener("resize", () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+});
