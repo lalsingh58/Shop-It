@@ -9,7 +9,7 @@
   let productType = localStorage.getItem("productType") || "glasses";
   let productImageSrc = localStorage.getItem("selectedProduct");
 
-  // Fallback images (demo only)
+  // Robust fallback images (working HTTPS URLs)
   const fallbackImages = {
     glasses: "https://cdn-icons-png.flaticon.com/512/3486/3486923.png",
     cap: "https://cdn-icons-png.flaticon.com/512/3028/3028776.png",
@@ -17,32 +17,53 @@
     earring: "https://cdn-icons-png.flaticon.com/512/5272/5272319.png",
   };
 
-  if (!productImageSrc || productImageSrc === "null") {
+  if (
+    !productImageSrc ||
+    productImageSrc === "null" ||
+    productImageSrc === "undefined"
+  ) {
     productImageSrc = fallbackImages[productType] || fallbackImages.glasses;
-    console.warn("Using fallback product image");
+    console.warn("Using fallback product image:", productImageSrc);
     statusHint.innerText = "Demo product loaded. Use +/− to resize.";
   } else {
+    console.log("Product from localStorage:", productImageSrc);
     statusHint.innerText = "Product ready | +/− to resize";
   }
 
-  // Load product image
+  // Load product image with error recovery
   const productImg = new Image();
   let productLoaded = false;
+  productImg.crossOrigin = "Anonymous"; // avoid CORS issues if possible
+
   productImg.onload = () => {
     productLoaded = true;
-    console.log("Product image loaded:", productImg.width, productImg.height);
+    console.log(
+      "✅ Product image loaded:",
+      productImg.width,
+      productImg.height,
+    );
     statusHint.style.opacity = "0.5";
   };
-  productImg.onerror = () => {
-    console.error("Failed to load product image, using fallback");
-    productImageSrc = fallbackImages[productType] || fallbackImages.glasses;
-    productImg.src = productImageSrc;
+
+  productImg.onerror = (err) => {
+    console.error("❌ Failed to load product image:", productImageSrc, err);
+    // Try fallback
+    const fallbackSrc = fallbackImages[productType];
+    if (fallbackSrc && productImageSrc !== fallbackSrc) {
+      console.log("🔄 Retrying with fallback image:", fallbackSrc);
+      productImageSrc = fallbackSrc;
+      productImg.src = fallbackSrc;
+    } else {
+      statusHint.innerText = "Error: product image missing";
+    }
   };
+
   productImg.src = productImageSrc;
 
   // ---------- Global variables ----------
   let userScale = 1.0;
-  let videoReady = false;
+  let lastVideoWidth = 0,
+    lastVideoHeight = 0;
 
   // Smoothing for glasses, cap, wig
   let smoothX = 0,
@@ -60,20 +81,27 @@
   let faceMesh = null;
   let camera = null;
 
-  // ---------- Helper: resize canvas to match video dimensions exactly ----------
-  function resizeCanvasToVideo() {
+  // ---------- Resize canvas only when video dimensions change ----------
+  function resizeCanvasIfNeeded() {
     if (video.videoWidth && video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.style.width = `${video.videoWidth}px`;
-      canvas.style.height = `${video.videoHeight}px`;
-      video.style.width = `${video.videoWidth}px`;
-      video.style.height = `${video.videoHeight}px`;
-      console.log(`Canvas resized: ${canvas.width} x ${canvas.height}`);
+      if (
+        video.videoWidth !== lastVideoWidth ||
+        video.videoHeight !== lastVideoHeight
+      ) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.style.width = `${video.videoWidth}px`;
+        canvas.style.height = `${video.videoHeight}px`;
+        video.style.width = `${video.videoWidth}px`;
+        video.style.height = `${video.videoHeight}px`;
+        lastVideoWidth = video.videoWidth;
+        lastVideoHeight = video.videoHeight;
+        console.log(`Canvas resized: ${canvas.width} x ${canvas.height}`);
+      }
     }
   }
 
-  // Draw video frame on canvas (background for capture)
+  // Draw video frame on canvas (background)
   function drawVideoOnCanvas() {
     if (
       video.videoWidth &&
@@ -244,17 +272,20 @@
     );
   }
 
-  // ---------- FaceMesh callback ----------
+  // ---------- FaceMesh callback (main render) ----------
   function onFaceMeshResults(results) {
+    // 1. Always draw video background first (stops blinking)
     drawVideoOnCanvas();
 
+    // 2. If product not loaded, show message and exit
     if (!productLoaded) {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.font = "14px sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.font = "16px sans-serif";
       ctx.fillText("Loading product...", 20, 50);
       return;
     }
 
+    // 3. Check for face
     const faces = results.multiFaceLandmarks;
     if (!faces || faces.length === 0) {
       ctx.fillStyle = "rgba(255,255,255,0.7)";
@@ -269,6 +300,7 @@
 
     const landmarks = faces[0];
 
+    // 4. Draw product based on type
     switch (productType) {
       case "glasses":
         drawGlasses(landmarks);
@@ -310,11 +342,17 @@
         video: { facingMode: "user" },
       });
       video.srcObject = stream;
+
+      // Wait for video metadata to set initial size
       video.addEventListener("loadedmetadata", () => {
         video.play();
-        resizeCanvasToVideo();
+        resizeCanvasIfNeeded();
+
+        // Start CameraUtils after video is ready
         camera = new Camera(video, {
           onFrame: async () => {
+            // Only resize if needed (not every frame)
+            resizeCanvasIfNeeded();
             if (faceMesh && video.videoWidth > 0) {
               await faceMesh.send({ image: video });
             }
@@ -326,15 +364,14 @@
       });
     } catch (err) {
       console.error("Camera error:", err);
-      statusHint.innerText = "Camera access denied or error";
+      statusHint.innerText = "❌ Camera access denied";
     }
   }
 
-  // Resize on window resize / orientation change
+  // Also resize on window resize / orientation change
   window.addEventListener("resize", () => {
-    if (video.videoWidth) resizeCanvasToVideo();
+    if (video.videoWidth) resizeCanvasIfNeeded();
   });
-  video.addEventListener("loadeddata", resizeCanvasToVideo);
 
   // ---------- Exposed UI functions ----------
   window.changeSize = function (delta) {
@@ -350,15 +387,15 @@
   };
 
   window.capturePhoto = function () {
-    drawVideoOnCanvas();
+    drawVideoOnCanvas(); // ensure latest frame
     setTimeout(() => {
       const link = document.createElement("a");
       link.download = `tryon_${productType}_${Date.now()}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
-      statusHint.innerText = "Screenshot saved!";
+      statusHint.innerText = "📸 Screenshot saved!";
       setTimeout(() => {
-        if (statusHint.innerText === "Screenshot saved!")
+        if (statusHint.innerText === "📸 Screenshot saved!")
           statusHint.innerText = "";
       }, 1500);
     }, 50);
