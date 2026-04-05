@@ -128,8 +128,7 @@ const products = [
   },
 ];
 
-const container = document.getElementById("product-container");
-
+const productContainer = document.getElementById("product-container");
 const categories = {
   glasses: "👓 Glasses",
   cap: "🧢 Caps",
@@ -143,11 +142,13 @@ function addToCart(product) {
 
   const existing = cart.find((item) => item.name === product.name);
 
-  if (existing) existing.quantity++;
-  else {
+  if (existing) {
+    existing.quantity++;
+  } else {
     cart.push({
       name: product.name,
       price: product.price,
+      model: product.model, // ✅ MUST
       quantity: 1,
     });
   }
@@ -155,7 +156,6 @@ function addToCart(product) {
   localStorage.setItem("cart", JSON.stringify(cart));
   alert(product.name + " added 🛒");
 }
-
 // 🔥 GROUP PRODUCTS
 const grouped = {};
 products.forEach((p) => {
@@ -175,8 +175,7 @@ Object.keys(categories).forEach((type) => {
     <div class="product-grid" id="${type}-grid"></div>
   `;
 
-  container.appendChild(section);
-
+  productContainer.appendChild(section);
   const grid = section.querySelector(".product-grid");
 
   grouped[type].forEach((product) => {

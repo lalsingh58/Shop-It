@@ -1,7 +1,16 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>Cart - Shop It</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cart • Shop It</title>
+
+    <!-- ✅ FIXED Model Viewer CDN -->
+    <script
+      type="module"
+      src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"
+    ></script>
+
     <link rel="stylesheet" href="../css/cart.css" />
   </head>
 
@@ -9,25 +18,24 @@
     <!-- Navbar -->
     <nav class="navbar">
       <div class="container nav-inner">
-        <div class="logo">SHOP IT</div>
-
+        <div class="logo">⚡ SHOP IT</div>
         <div class="nav-links">
-          <a href="index.html">Home</a>
-          <a href="products.html">Shop</a>
-          <a href="cart.html">Cart</a>
+          <a href="../index.html">Home</a>
+          <a href="../html/products.html">Shop</a>
+          <a href="../html/cart.html" style="color: #38bdf8">Cart</a>
         </div>
       </div>
     </nav>
 
     <!-- Cart Section -->
     <section class="cart container">
-      <h2>Your Cart 🛒</h2>
+      <h2>🛒 Your Cart</h2>
 
       <div id="cart-items"></div>
 
       <div class="cart-summary">
         <h3>Total: ₹<span id="total">0</span></h3>
-        <button class="btn">Checkout</button>
+        <button class="btn" id="checkoutBtn">Checkout</button>
       </div>
     </section>
 
