@@ -4,18 +4,18 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 const tf = window.tf;
 const faceLandmarksDetection = window.faceLandmarksDetection;
 
-// DOM
+// ================= DOM =================
 const video = document.getElementById("video");
 const canvas = document.getElementById("threeCanvas");
 const label = document.getElementById("faceLabel");
 
-// PRODUCT
+// ================= PRODUCT =================
 const selectedModel =
   localStorage.getItem("selectedModel") || "../assets/models/glasses/g1.glb";
 
 const productType = localStorage.getItem("productType") || "glasses";
 
-// THREE
+// ================= THREE =================
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
@@ -34,39 +34,33 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-// LIGHT (better realism)
+// Lighting (better realism)
 scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+dirLight.position.set(0, 1, 2);
+scene.add(dirLight);
 
-const light = new THREE.DirectionalLight(0xffffff, 1.2);
-light.position.set(0, 1, 2);
-scene.add(light);
-
-// FACE ANCHOR
+// ================= FACE ANCHOR =================
 const faceAnchor = new THREE.Group();
 scene.add(faceAnchor);
 
-// MODEL
+// ================= MODEL =================
 let model,
   baseScale = 1;
 const loader = new GLTFLoader();
 
-loader.load(
-  selectedModel,
-  (gltf) => {
-    model = gltf.scene;
+loader.load(selectedModel, (gltf) => {
+  model = gltf.scene;
 
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3()).length();
-    baseScale = 1 / size;
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3()).length();
+  baseScale = 1 / size;
 
-    model.scale.setScalar(baseScale);
-    faceAnchor.add(model);
-  },
-  undefined,
-  (err) => console.error("Model load error:", err),
-);
+  model.scale.setScalar(baseScale);
+  faceAnchor.add(model);
+});
 
-// ===== OCCLUDER (basic AR realism) =====
+// ================= OCCLUDER =================
 const occluder = new THREE.Mesh(
   new THREE.SphereGeometry(1, 32, 32),
   new THREE.MeshBasicMaterial({
@@ -76,12 +70,19 @@ const occluder = new THREE.Mesh(
 );
 faceAnchor.add(occluder);
 
-// ===== SMOOTH FILTER (Snap-style) =====
+// ================= SMOOTHING =================
 const smoothPos = new THREE.Vector3();
 const smoothRot = new THREE.Euler();
 let smoothScale = 1;
 
-// NORMALIZE
+// adaptive smoothing (Snap-like)
+function adaptiveLerp(current, target, factorFast = 0.6, factorSlow = 0.2) {
+  const diff = current.distanceTo(target);
+  const factor = diff > 0.05 ? factorFast : factorSlow;
+  current.lerp(target, factor);
+}
+
+// ================= NORMALIZE =================
 function norm(p, w, h) {
   return new THREE.Vector3(
     (p.x - w / 2) / (w / 2),
@@ -90,11 +91,35 @@ function norm(p, w, h) {
   );
 }
 
-// UPDATE MODEL
+// ================= USER SCALE (GESTURE) =================
+let userScale = 1;
+
+// pinch zoom mobile
+let lastDist = null;
+canvas.addEventListener("touchmove", (e) => {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (lastDist) {
+      userScale += (dist - lastDist) * 0.002;
+      userScale = Math.max(0.5, Math.min(2.5, userScale));
+    }
+    lastDist = dist;
+  }
+});
+
+// scroll zoom desktop
+window.addEventListener("wheel", (e) => {
+  userScale += e.deltaY * -0.001;
+  userScale = Math.max(0.5, Math.min(2.5, userScale));
+});
+
+// ================= UPDATE =================
 function update(lm, w, h) {
   if (!model || w === 0) return;
 
-  // landmarks
   const leftEye = norm(lm[33], w, h);
   const rightEye = norm(lm[263], w, h);
   const nose = norm(lm[1], w, h);
@@ -104,21 +129,19 @@ function update(lm, w, h) {
 
   const faceWidth = leftEar.distanceTo(rightEar);
 
-  // ===== POSITION (stable anchor) =====
+  // ===== POSITION =====
   const eyeCenter = new THREE.Vector3()
     .addVectors(leftEye, rightEye)
     .multiplyScalar(0.5);
-
   const anchor = new THREE.Vector3()
     .addVectors(eyeCenter, nose)
     .multiplyScalar(0.5);
-
   anchor.z = nose.z;
 
-  smoothPos.lerp(anchor, 0.65);
+  adaptiveLerp(smoothPos, anchor);
   faceAnchor.position.copy(smoothPos);
 
-  // ===== ROTATION (stable 3-axis) =====
+  // ===== ROTATION =====
   const dx = rightEye.x - leftEye.x;
   const dy = rightEye.y - leftEye.y;
 
@@ -133,33 +156,38 @@ function update(lm, w, h) {
   faceAnchor.rotation.copy(smoothRot);
 
   // ===== SCALE =====
-  const targetScale = baseScale * faceWidth * 2;
+  const targetScale = baseScale * faceWidth * 2 * userScale;
   smoothScale += (targetScale - smoothScale) * 0.4;
 
-  // ===== PRODUCT TYPES =====
+  // ===== PRODUCTS =====
   if (productType === "glasses") {
     model.position.set(0, -0.02, 0.12);
     model.scale.setScalar(smoothScale * 1.15);
-
-    occluder.scale.set(faceWidth * 1.1, faceWidth * 1.3, faceWidth);
   }
 
   if (productType === "cap") {
     model.position.set(0, 0.5 + faceWidth * 0.2, -faceWidth * 0.4);
     model.scale.setScalar(smoothScale * 2.0);
-
-    occluder.scale.set(faceWidth * 1.3, faceWidth * 1.6, faceWidth);
   }
 
   if (productType === "wig") {
     model.position.set(0, 0.45 + faceWidth * 0.15, -faceWidth * 0.5);
     model.scale.setScalar(smoothScale * 2.5);
-
-    occluder.scale.set(faceWidth * 1.4, faceWidth * 1.7, faceWidth);
   }
+
+  // 💍 Earrings (new)
+  if (productType === "earring") {
+    model.position.set(0, -0.2, 0);
+    model.scale.setScalar(smoothScale * 0.8);
+
+    // optional: duplicate for both ears (advanced can be added)
+  }
+
+  // occlusion
+  occluder.scale.set(faceWidth * 1.3, faceWidth * 1.6, faceWidth);
 }
 
-// CAMERA
+// ================= CAMERA =================
 async function startCamera() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: "user" },
@@ -175,7 +203,7 @@ async function startCamera() {
   });
 }
 
-// AI
+// ================= AI =================
 let detector;
 
 async function initAI() {
@@ -190,7 +218,7 @@ async function initAI() {
   );
 }
 
-// LOOP
+// ================= LOOP =================
 async function detect() {
   if (!detector) {
     requestAnimationFrame(detect);
@@ -200,7 +228,7 @@ async function detect() {
   const faces = await detector.estimateFaces(video);
 
   if (faces.length > 0) {
-    label.innerText = "✅ Tracking";
+    label.innerText = "🔥 FINAL BOSS TRACKING";
     update(faces[0].keypoints, video.videoWidth, video.videoHeight);
   } else {
     label.innerText = "❌ No face";
@@ -209,7 +237,7 @@ async function detect() {
   requestAnimationFrame(detect);
 }
 
-// INIT
+// ================= INIT =================
 async function init() {
   await startCamera();
   await initAI();
@@ -217,14 +245,14 @@ async function init() {
 }
 init();
 
-// RENDER LOOP
+// ================= RENDER =================
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
 animate();
 
-// RESIZE
+// ================= RESIZE =================
 window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
