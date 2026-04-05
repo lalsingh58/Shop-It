@@ -2,19 +2,21 @@
 <html>
   <head>
     <title>Shop It - Virtual Try On</title>
-    <link rel="stylesheet" href="../css/style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../css/tryon.css" />
   </head>
 
   <body>
     <h2>👓 Virtual Glasses Try-On</h2>
 
-    <video id="video" width="640" height="480" autoplay playsinline></video>
-    <canvas id="canvas" width="640" height="480"></canvas>
+    <div class="camera-container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+    </div>
 
-    <!-- MediaPipe Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
-    <script src="../js/script.js"></script>
+    <script src="../js/tryon.js"></script>
   </body>
 </html>
