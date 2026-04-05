@@ -25,7 +25,7 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+scene.add(new THREE.AmbientLight(0xffffff, 1));
 
 // ================= MODEL =================
 let model = null;
@@ -33,7 +33,7 @@ let currentModelPath = "";
 let loader = new GLTFLoader();
 let baseScale = 1;
 
-// fallback models
+// MODELS (make sure these paths exist!)
 const MODELS = {
   Round: "/assets/models/rect.glb",
   Square: "/assets/models/round.glb",
@@ -42,10 +42,27 @@ const MODELS = {
   Default: "/assets/models/glasses.glb",
 };
 
+// ================= FALLBACK =================
+function createFallbackGlasses() {
+  const group = new THREE.Group();
+
+  const mat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+
+  const left = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), mat);
+  left.position.set(-0.2, 0, 0);
+
+  const right = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), mat);
+  right.position.set(0.2, 0, 0);
+
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.05), mat);
+
+  group.add(left, right, bridge);
+  return group;
+}
+
 // ================= LOAD MODEL =================
 function loadModel(path) {
   if (!path) return;
-
   if (currentModelPath === path) return;
 
   if (model) {
@@ -60,19 +77,30 @@ function loadModel(path) {
 
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3()).length();
 
       model.position.sub(center);
-      model.scale.setScalar(1 / size);
+
+      // 🔥 FIX: DO NOT shrink model too much
+      model.scale.set(1, 1, 1);
+
+      // ensure visible
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.material.side = THREE.DoubleSide;
+        }
+      });
 
       scene.add(model);
       currentModelPath = path;
 
-      console.log("Model loaded:", path);
+      console.log("✅ Model loaded:", path);
     },
     undefined,
     (err) => {
-      console.error("Model load failed:", err);
+      console.warn("❌ Model failed → fallback used");
+
+      model = createFallbackGlasses();
+      scene.add(model);
     },
   );
 }
@@ -82,7 +110,7 @@ function getPos(p, w, h) {
   return new THREE.Vector3((p.x / w) * 2 - 1, 1 - (p.y / h) * 2, -p.z * 1.2);
 }
 
-// ================= FACE CLASSIFICATION =================
+// ================= FACE SHAPE =================
 function classify(lm, w, h) {
   const left = getPos(lm[234], w, h);
   const right = getPos(lm[454], w, h);
@@ -115,7 +143,8 @@ function updateModel(lm, w, h) {
     .addVectors(leftEye, rightEye)
     .multiplyScalar(0.5);
 
-  center.z = nose.z - 0.08;
+  // 🔥 FIX DEPTH
+  center.z = nose.z - 0.3;
 
   // smooth movement
   smoothPos.lerp(center, 0.3);
@@ -126,10 +155,10 @@ function updateModel(lm, w, h) {
   smoothRot += (angle - smoothRot) * 0.3;
   model.rotation.set(0, 0, smoothRot);
 
-  // scale
+  // 🔥 FIX SCALE
   const faceWidth = getPos(lm[234], w, h).distanceTo(getPos(lm[454], w, h));
-  const scale = faceWidth * 1.4 * baseScale;
 
+  const scale = faceWidth * 2.5 * baseScale;
   model.scale.set(scale, scale, scale);
 }
 
@@ -137,8 +166,6 @@ function updateModel(lm, w, h) {
 let detector = null;
 
 async function initAI() {
-  console.log("Initializing AI...");
-
   if (tf.getBackend() !== "webgl") {
     await tf.setBackend("webgl");
   }
@@ -151,13 +178,11 @@ async function initAI() {
     },
   );
 
-  console.log("AI Ready");
+  console.log("✅ AI Ready");
 }
 
 // ================= CAMERA =================
 async function startCamera() {
-  console.log("Starting camera...");
-
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
@@ -174,15 +199,15 @@ async function startCamera() {
     });
 
     faceLabel.innerText = "✅ Camera Ready";
-    console.log("Camera started");
+    console.log("📷 Camera started");
   } catch (err) {
-    console.error("Camera error:", err);
-    faceLabel.innerText = "❌ Camera Blocked!";
-    alert("Camera error: " + err.message);
+    console.error("❌ Camera error:", err);
+    faceLabel.innerText = "❌ Camera blocked!";
+    alert(err.message);
   }
 }
 
-// ================= DETECTION LOOP =================
+// ================= LOOP =================
 async function detect() {
   if (!detector || video.readyState !== 4) {
     requestAnimationFrame(detect);
@@ -200,9 +225,7 @@ async function detect() {
       const shape = classify(lm, w, h);
       faceLabel.innerText = "👓 " + shape;
 
-      const modelPath = MODELS[shape] || MODELS.Default;
-      loadModel(modelPath);
-
+      loadModel(MODELS[shape] || MODELS.Default);
       updateModel(lm, w, h);
     } else {
       faceLabel.innerText = "😶 Show your face";
@@ -227,9 +250,13 @@ window.goBack = () => history.back();
 
 // ================= INIT =================
 async function init() {
-  await startCamera(); // 🔥 FIRST
-  await initAI(); // 🔥 THEN AI
-  detect(); // 🔥 LOOP
+  await startCamera();
+  await initAI();
+
+  // 🔥 FORCE DEFAULT MODEL LOAD
+  loadModel(MODELS.Default);
+
+  detect();
 }
 init();
 
