@@ -143,41 +143,61 @@ function updateModel(lm, w, h) {
   const leftEye = getPos(lm[33], w, h);
   const rightEye = getPos(lm[263], w, h);
   const nose = getPos(lm[1], w, h);
+  const forehead = getPos(lm[10], w, h);
+  const chin = getPos(lm[152], w, h);
+  const leftEar = getPos(lm[234], w, h);
+  const rightEar = getPos(lm[454], w, h);
 
-  const center = new THREE.Vector3()
-    .addVectors(leftEye, rightEye)
-    .multiplyScalar(0.5);
+  let center = new THREE.Vector3();
 
-  // 🔥 adjust based on product type
-  if (productType === "cap" || productType === "wig") {
-    center.y += 0.3;
+  // ================= 🎯 PRODUCT BASED POSITION =================
+
+  if (productType === "glasses") {
+    // 👓 Eyes center
+    center.addVectors(leftEye, rightEye).multiplyScalar(0.5);
+    center.z = nose.z - 0.35;
+  } else if (productType === "cap") {
+    // 🧢 Top of head
+    center.copy(forehead);
+    center.y += 0.25;
     center.z = nose.z - 0.6;
+  } else if (productType === "wig") {
+    // 💇 Full head coverage
+    center.copy(forehead);
+    center.y += 0.15;
+    center.z = nose.z - 0.7;
   } else if (productType === "earring") {
-    center.y -= 0.2;
+    // 💍 Place between ears (we'll duplicate visually)
+    center.addVectors(leftEar, rightEar).multiplyScalar(0.5);
+    center.y -= 0.1;
     center.z = nose.z - 0.2;
-  } else {
-    center.z = nose.z - 0.3; // glasses
   }
 
-  // smooth movement
-  smoothPos.lerp(center, 0.3);
+  // ================= 🎯 SMOOTH =================
+  smoothPos.lerp(center, 0.35);
   model.position.copy(smoothPos);
 
-  // rotation
+  // ================= 🎯 ROTATION =================
   const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-  smoothRot += (angle - smoothRot) * 0.3;
+  smoothRot += (angle - smoothRot) * 0.35;
   model.rotation.set(0, 0, smoothRot);
 
-  // scale
-  const faceWidth = getPos(lm[234], w, h).distanceTo(getPos(lm[454], w, h));
+  // ================= 🎯 SCALE =================
+  const faceWidth = leftEar.distanceTo(rightEar);
+  const faceHeight = forehead.distanceTo(chin);
 
-  let scaleMultiplier = 2.5;
+  let scale;
 
-  if (productType === "cap") scaleMultiplier = 3.5;
-  if (productType === "wig") scaleMultiplier = 4;
-  if (productType === "earring") scaleMultiplier = 1.2;
+  if (productType === "glasses") {
+    scale = faceWidth * 2.2 * baseScale;
+  } else if (productType === "cap") {
+    scale = faceWidth * 3.2 * baseScale;
+  } else if (productType === "wig") {
+    scale = faceWidth * 3.8 * baseScale;
+  } else if (productType === "earring") {
+    scale = faceWidth * 0.8 * baseScale;
+  }
 
-  const scale = faceWidth * scaleMultiplier * baseScale;
   model.scale.set(scale, scale, scale);
 }
 
