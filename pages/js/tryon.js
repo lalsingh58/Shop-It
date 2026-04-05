@@ -1,13 +1,14 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-// DOM
+// ================= DOM =================
 const video = document.getElementById("video");
 const canvas = document.getElementById("threeCanvas");
 const faceLabel = document.getElementById("faceLabel");
 
-// THREE
+// ================= THREE =================
 const scene = new THREE.Scene();
+
 const camera3D = new THREE.PerspectiveCamera(
   70,
   window.innerWidth / window.innerHeight,
@@ -24,15 +25,15 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 
-// MODEL
-let model;
+// ================= MODEL =================
+let model = null;
+let currentModelPath = "";
 let loader = new GLTFLoader();
-let currentModel = "";
 let baseScale = 1;
 
-// MODELS
+// fallback models
 const MODELS = {
   Round: "/assets/models/rect.glb",
   Square: "/assets/models/round.glb",
@@ -41,33 +42,47 @@ const MODELS = {
   Default: "/assets/models/glasses.glb",
 };
 
-// LOAD MODEL
+// ================= LOAD MODEL =================
 function loadModel(path) {
-  if (currentModel === path) return;
+  if (!path) return;
 
-  if (model) scene.remove(model);
+  if (currentModelPath === path) return;
 
-  loader.load(path, (gltf) => {
-    model = gltf.scene;
+  if (model) {
+    scene.remove(model);
+    model = null;
+  }
 
-    const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3()).length();
+  loader.load(
+    path,
+    (gltf) => {
+      model = gltf.scene;
 
-    model.position.sub(center);
-    model.scale.setScalar(1 / size);
+      const box = new THREE.Box3().setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3()).length();
 
-    scene.add(model);
-    currentModel = path;
-  });
+      model.position.sub(center);
+      model.scale.setScalar(1 / size);
+
+      scene.add(model);
+      currentModelPath = path;
+
+      console.log("Model loaded:", path);
+    },
+    undefined,
+    (err) => {
+      console.error("Model load failed:", err);
+    },
+  );
 }
 
-// POSITION
+// ================= POSITION =================
 function getPos(p, w, h) {
   return new THREE.Vector3((p.x / w) * 2 - 1, 1 - (p.y / h) * 2, -p.z * 1.2);
 }
 
-// FACE SHAPE
+// ================= FACE CLASSIFICATION =================
 function classify(lm, w, h) {
   const left = getPos(lm[234], w, h);
   const right = getPos(lm[454], w, h);
@@ -80,15 +95,16 @@ function classify(lm, w, h) {
   if (ratio < 1.2) return "Round";
   if (Math.abs(left.distanceTo(right) - forehead.distanceTo(chin)) < 0.08)
     return "Square";
+
   return "Heart";
 }
 
-// SMOOTH
+// ================= SMOOTH =================
 let smoothPos = new THREE.Vector3();
 let smoothRot = 0;
 
-// UPDATE MODEL
-function update(lm, w, h) {
+// ================= UPDATE MODEL =================
+function updateModel(lm, w, h) {
   if (!model) return;
 
   const leftEye = getPos(lm[33], w, h);
@@ -98,40 +114,54 @@ function update(lm, w, h) {
   const center = new THREE.Vector3()
     .addVectors(leftEye, rightEye)
     .multiplyScalar(0.5);
+
   center.z = nose.z - 0.08;
 
+  // smooth movement
   smoothPos.lerp(center, 0.3);
   model.position.copy(smoothPos);
 
+  // rotation
   const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
   smoothRot += (angle - smoothRot) * 0.3;
   model.rotation.set(0, 0, smoothRot);
 
+  // scale
   const faceWidth = getPos(lm[234], w, h).distanceTo(getPos(lm[454], w, h));
   const scale = faceWidth * 1.4 * baseScale;
 
   model.scale.set(scale, scale, scale);
 }
 
-// AI
-let detector;
+// ================= AI =================
+let detector = null;
 
 async function initAI() {
+  console.log("Initializing AI...");
+
   if (tf.getBackend() !== "webgl") {
     await tf.setBackend("webgl");
   }
 
   detector = await faceLandmarksDetection.createDetector(
     faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-    { runtime: "tfjs", maxFaces: 1 },
+    {
+      runtime: "tfjs",
+      maxFaces: 1,
+    },
   );
+
+  console.log("AI Ready");
 }
 
-// CAMERA (FIXED 🔥)
+// ================= CAMERA =================
 async function startCamera() {
+  console.log("Starting camera...");
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user" },
+      audio: false,
     });
 
     video.srcObject = stream;
@@ -143,56 +173,76 @@ async function startCamera() {
       };
     });
 
-    faceLabel.innerText = "✅ Camera ready";
+    faceLabel.innerText = "✅ Camera Ready";
+    console.log("Camera started");
   } catch (err) {
-    console.error(err);
-    faceLabel.innerText = "❌ Camera blocked!";
+    console.error("Camera error:", err);
+    faceLabel.innerText = "❌ Camera Blocked!";
+    alert("Camera error: " + err.message);
   }
 }
 
-// LOOP (FIXED 🔥)
+// ================= DETECTION LOOP =================
 async function detect() {
   if (!detector || video.readyState !== 4) {
     requestAnimationFrame(detect);
     return;
   }
 
-  const faces = await detector.estimateFaces(video);
+  try {
+    const faces = await detector.estimateFaces(video);
 
-  if (faces.length > 0) {
-    const lm = faces[0].keypoints; // ✅ CORRECT FORMAT
-    const w = video.videoWidth;
-    const h = video.videoHeight;
+    if (faces.length > 0) {
+      const lm = faces[0].keypoints;
+      const w = video.videoWidth;
+      const h = video.videoHeight;
 
-    const shape = classify(lm, w, h);
-    faceLabel.innerText = "👓 " + shape;
+      const shape = classify(lm, w, h);
+      faceLabel.innerText = "👓 " + shape;
 
-    loadModel(MODELS[shape] || MODELS.Default);
-    update(lm, w, h);
-  } else {
-    faceLabel.innerText = "😶 Show your face";
+      const modelPath = MODELS[shape] || MODELS.Default;
+      loadModel(modelPath);
+
+      updateModel(lm, w, h);
+    } else {
+      faceLabel.innerText = "😶 Show your face";
+    }
+  } catch (err) {
+    console.warn("Detection error:", err);
   }
 
   requestAnimationFrame(detect);
 }
 
-// CONTROLS
-document.getElementById("minusBtn").onclick = () => (baseScale -= 0.1);
-document.getElementById("plusBtn").onclick = () => (baseScale += 0.1);
+// ================= CONTROLS =================
+document.getElementById("minusBtn").onclick = () => {
+  baseScale = Math.max(0.6, baseScale - 0.1);
+};
+
+document.getElementById("plusBtn").onclick = () => {
+  baseScale = Math.min(1.8, baseScale + 0.1);
+};
 
 window.goBack = () => history.back();
 
-// INIT
+// ================= INIT =================
 async function init() {
-  await startCamera();
-  await initAI();
-  detect();
+  await startCamera(); // 🔥 FIRST
+  await initAI(); // 🔥 THEN AI
+  detect(); // 🔥 LOOP
 }
 init();
 
-// RENDER
+// ================= RENDER =================
 function animate() {
   requestAnimationFrame(animate);
   renderer.render(scene, camera3D);
 }
 animate();
+
+// ================= RESIZE =================
+window.addEventListener("resize", () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera3D.aspect = window.innerWidth / window.innerHeight;
+  camera3D.updateProjectionMatrix();
+});
