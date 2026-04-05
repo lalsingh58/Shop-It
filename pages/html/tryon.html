@@ -1,38 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no"
-    />
-    <title>Virtual Try-On | Shop It</title>
-    <link rel="stylesheet" href="../css/tryon.css" />
-  </head>
-  <body>
-    <div class="top-bar">
-      <button onclick="goBack()">← Back</button>
-      <h3>✨ Virtual Try-On</h3>
-      <div class="spacer"></div>
-    </div>
+    <title>Shop It - 3D Try On</title>
 
-    <div class="camera-container">
-      <video id="video" autoplay playsinline muted></video>
-      <canvas id="canvas"></canvas>
+    <!-- Mediapipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152/examples/js/loaders/GLTFLoader.js"></script>
+
+    <link rel="stylesheet" href="../css/tryon.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+
+  <body>
+    <!-- Camera -->
+    <video id="video" autoplay playsinline></video>
+
+    <!-- 3D Canvas -->
+    <canvas id="threeCanvas"></canvas>
+
+    <!-- UI -->
+    <div class="top-bar">
+      <button onclick="goBack()">⬅ Back</button>
+      <h2>Try On</h2>
     </div>
 
     <div class="controls">
       <button onclick="changeSize(-0.1)">−</button>
-      <button onclick="capturePhoto()">📸</button>
       <button onclick="changeSize(0.1)">+</button>
     </div>
-    <div class="status-hint" id="statusHint">Adjust size with + / −</div>
 
-    <!-- MediaPipe libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-
-    <!-- Main try-on logic -->
     <script src="../js/tryon.js"></script>
   </body>
 </html>

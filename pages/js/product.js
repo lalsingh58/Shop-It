@@ -1,92 +1,135 @@
 const products = [
+  // 👓 Glasses (5)
   {
     name: "Classic Glasses",
     price: 499,
-    img: "../assets/glasses/g1.png",
+    model: "../assets/models/glasses/g1.glb",
     type: "glasses",
   },
   {
     name: "Round Glasses",
     price: 599,
-    img: "../assets/glasses/g2.png",
+    model: "../assets/models/glasses/g2.glb",
     type: "glasses",
   },
   {
     name: "Black Frame",
     price: 699,
-    img: "../assets/glasses/g3.png",
+    model: "../assets/models/glasses/g3.glb",
     type: "glasses",
   },
   {
     name: "Stylish Glasses",
     price: 799,
-    img: "../assets/glasses/g4.png",
+    model: "../assets/models/glasses/g4.glb",
     type: "glasses",
   },
   {
     name: "Cool Glasses",
     price: 899,
-    img: "../assets/glasses/g5.png",
+    model: "../assets/models/glasses/g5.glb",
     type: "glasses",
   },
 
-  { name: "Street Cap", price: 299, img: "../assets/caps/c1.png", type: "cap" },
-  { name: "Black Cap", price: 349, img: "../assets/caps/c2.png", type: "cap" },
-  { name: "Sports Cap", price: 399, img: "../assets/caps/c3.png", type: "cap" },
-  { name: "Snapback", price: 449, img: "../assets/caps/c4.png", type: "cap" },
-  { name: "Cool Cap", price: 499, img: "../assets/caps/c5.png", type: "cap" },
+  // 🧢 Caps (5)
+  {
+    name: "Street Cap",
+    price: 299,
+    model: "../assets/models/caps/c1.glb",
+    type: "cap",
+  },
+  {
+    name: "Black Cap",
+    price: 349,
+    model: "../assets/models/caps/c2.glb",
+    type: "cap",
+  },
+  {
+    name: "Sports Cap",
+    price: 399,
+    model: "../assets/models/caps/c3.glb",
+    type: "cap",
+  },
+  {
+    name: "Snapback Cap",
+    price: 449,
+    model: "../assets/models/caps/c4.glb",
+    type: "cap",
+  },
+  {
+    name: "Cool Cap",
+    price: 499,
+    model: "../assets/models/caps/c5.glb",
+    type: "cap",
+  },
 
-  { name: "Curly Wig", price: 999, img: "../assets/wigs/w1.png", type: "wig" },
+  // 💇 Wigs (5)
+  {
+    name: "Curly Wig",
+    price: 999,
+    model: "../assets/models/wigs/w1.glb",
+    type: "wig",
+  },
   {
     name: "Straight Wig",
     price: 1099,
-    img: "../assets/wigs/w2.png",
+    model: "../assets/models/wigs/w2.glb",
     type: "wig",
   },
-  { name: "Short Wig", price: 1199, img: "../assets/wigs/w3.png", type: "wig" },
-  { name: "Long Wig", price: 1299, img: "../assets/wigs/w4.png", type: "wig" },
+  {
+    name: "Short Wig",
+    price: 1199,
+    model: "../assets/models/wigs/w3.glb",
+    type: "wig",
+  },
+  {
+    name: "Long Wig",
+    price: 1299,
+    model: "../assets/models/wigs/w4.glb",
+    type: "wig",
+  },
   {
     name: "Fashion Wig",
     price: 1399,
-    img: "../assets/wigs/w5.png",
+    model: "../assets/models/wigs/w5.glb",
     type: "wig",
   },
 
+  // 💍 Earrings (5)
   {
     name: "Gold Earrings",
     price: 199,
-    img: "../assets/earrings/e1.png",
+    model: "../assets/models/earrings/e1.glb",
     type: "earring",
   },
   {
     name: "Silver Earrings",
     price: 249,
-    img: "../assets/earrings/e2.png",
+    model: "../assets/models/earrings/e2.glb",
     type: "earring",
   },
   {
     name: "Stud Earrings",
     price: 299,
-    img: "../assets/earrings/e3.png",
+    model: "../assets/models/earrings/e3.glb",
     type: "earring",
   },
   {
     name: "Hoop Earrings",
     price: 349,
-    img: "../assets/earrings/e4.png",
+    model: "../assets/models/earrings/e4.glb",
     type: "earring",
   },
   {
     name: "Fancy Earrings",
     price: 399,
-    img: "../assets/earrings/e5.png",
+    model: "../assets/models/earrings/e5.glb",
     type: "earring",
   },
 ];
 
 const container = document.getElementById("product-container");
 
-/* CATEGORY TITLES */
 const categories = {
   glasses: "👓 Glasses",
   cap: "🧢 Caps",
@@ -94,38 +137,33 @@ const categories = {
   earring: "💍 Earrings",
 };
 
-/* ADD TO CART */
+// 🛒 CART FUNCTION
 function addToCart(product) {
   let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
   const existing = cart.find((item) => item.name === product.name);
 
-  if (existing) {
-    existing.quantity += 1;
-  } else {
+  if (existing) existing.quantity++;
+  else {
     cart.push({
       name: product.name,
       price: product.price,
-      image: product.img,
       quantity: 1,
     });
   }
 
   localStorage.setItem("cart", JSON.stringify(cart));
-  alert(product.name + " added to cart 🛒");
+  alert(product.name + " added 🛒");
 }
 
-/* GROUP PRODUCTS BY CATEGORY */
+// 🔥 GROUP PRODUCTS
 const grouped = {};
-
 products.forEach((p) => {
-  if (!grouped[p.type]) {
-    grouped[p.type] = [];
-  }
+  if (!grouped[p.type]) grouped[p.type] = [];
   grouped[p.type].push(p);
 });
 
-/* RENDER CATEGORY SECTIONS */
+// 🎯 RENDER
 Object.keys(categories).forEach((type) => {
   if (!grouped[type]) return;
 
@@ -146,7 +184,14 @@ Object.keys(categories).forEach((type) => {
     card.className = "card";
 
     card.innerHTML = `
-      <img src="${product.img}" alt="${product.name}">
+      <model-viewer 
+        src="${product.model}" 
+        alt="${product.name}"
+        auto-rotate 
+        camera-controls 
+        shadow-intensity="1"
+      ></model-viewer>
+
       <div class="card-content">
         <h3>${product.name}</h3>
         <p class="price">₹${product.price}</p>
@@ -155,17 +200,16 @@ Object.keys(categories).forEach((type) => {
       </div>
     `;
 
-    // Try
+    // TRY BUTTON
     card.querySelector(".try-btn").onclick = () => {
-      localStorage.setItem("selectedProduct", product.img);
+      localStorage.setItem("selectedModel", product.model);
       localStorage.setItem("productType", product.type);
       window.location.href = "../html/tryon.html";
     };
 
-    // Cart
-    card.querySelector(".cart-btn").onclick = () => {
-      addToCart(product);
-    };
+    // CART
+    card.querySelector(".cart-btn").onclick = () => addToCart(product);
+
     grid.appendChild(card);
   });
 });

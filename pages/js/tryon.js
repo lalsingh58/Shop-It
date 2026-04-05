@@ -1,234 +1,151 @@
-(function () {
-  const video = document.getElementById("video");
-  const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d");
-  const statusHint = document.getElementById("statusHint");
+const video = document.getElementById("video");
+const canvas = document.getElementById("threeCanvas");
 
-  let productType = localStorage.getItem("productType") || "glasses";
-  let productImageSrc = localStorage.getItem("selectedProduct");
+const modelPath = localStorage.getItem("selectedModel");
+const productType = localStorage.getItem("productType");
 
-  const fallbackImages = {
-    glasses: "https://cdn-icons-png.flaticon.com/512/3486/3486923.png",
-    cap: "https://cdn-icons-png.flaticon.com/512/3028/3028776.png",
-    wig: "https://cdn-icons-png.flaticon.com/512/3043/3043779.png",
-    earring: "https://cdn-icons-png.flaticon.com/512/5272/5272319.png",
-    necklace: "https://cdn-icons-png.flaticon.com/512/992/992700.png",
-    mask: "https://cdn-icons-png.flaticon.com/512/4140/4140048.png",
-  };
+let userScale = 1;
 
-  if (!productImageSrc || productImageSrc === "null") {
-    productImageSrc = fallbackImages[productType];
+// THREE SETUP
+const scene = new THREE.Scene();
+
+const camera3D = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth / window.innerHeight,
+  0.01,
+  100,
+);
+camera3D.position.z = 2;
+
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  alpha: true,
+  antialias: true,
+});
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+// 🔥 LIGHTING (REALISTIC)
+const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+scene.add(light);
+
+// MODEL
+let model;
+const loader = new THREE.GLTFLoader();
+
+loader.load(
+  modelPath,
+  (gltf) => {
+    model = gltf.scene;
+
+    let baseScale = 0.5;
+
+    if (productType === "glasses") baseScale = 0.6;
+    if (productType === "cap") baseScale = 1.3;
+    if (productType === "wig") baseScale = 1.5;
+    if (productType === "earring") baseScale = 0.3;
+
+    model.scale.set(baseScale, baseScale, baseScale);
+    userScale = baseScale;
+
+    scene.add(model);
+  },
+  undefined,
+  (err) => alert("❌ Model load error"),
+);
+
+// SMOOTHING
+let smooth = { x: 0, y: 0, z: -2, init: false };
+
+function lerp(a, b, t = 0.2) {
+  return a + (b - a) * t;
+}
+
+// UPDATE
+function update3D(lm) {
+  if (!model) return;
+
+  const nose = lm[1];
+  const left = lm[33];
+  const right = lm[263];
+
+  let x = (nose.x - 0.5) * 2;
+  let y = -(nose.y - 0.5) * 2;
+
+  let dist = Math.hypot(right.x - left.x, right.y - left.y);
+  let z = -2 + dist * 1.5;
+
+  if (!smooth.init) smooth = { x, y, z, init: true };
+  else {
+    smooth.x = lerp(smooth.x, x);
+    smooth.y = lerp(smooth.y, y);
+    smooth.z = lerp(smooth.z, z);
   }
 
-  const productImg = new Image();
-  let productLoaded = false;
+  model.position.set(smooth.x, smooth.y, smooth.z);
 
-  productImg.onload = () => (productLoaded = true);
-  productImg.onerror = () => {
-    productImg.src = fallbackImages[productType];
-  };
-  productImg.src = productImageSrc;
+  let angle = Math.atan2(right.y - left.y, right.x - left.x);
+  model.rotation.z = angle;
 
-  let userScale = 1;
-
-  // 🔥 Advanced smoothing system
-  const smooth = {
-    x: 0,
-    y: 0,
-    angle: 0,
-    scale: 1,
-    init: false,
-  };
-
-  function lerp(a, b, t = 0.25) {
-    return a + (b - a) * t;
+  // 🎯 TYPE BASED POSITION
+  if (productType === "cap" || productType === "wig") {
+    model.position.y += 0.4;
   }
 
-  function resizeCanvas() {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+  if (productType === "earring") {
+    model.position.x += 0.25;
+    model.position.y -= 0.2;
   }
+}
 
-  function drawFrame() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  }
+// MEDIAPIPE
+const faceMesh = new FaceMesh({
+  locateFile: (file) =>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+});
 
-  // 🔥 Depth estimation using eye distance
-  function getDepthScale(lm) {
-    const l = lm[33];
-    const r = lm[263];
-    const dist = Math.hypot(
-      (r.x - l.x) * canvas.width,
-      (r.y - l.y) * canvas.height,
-    );
-    return dist / 150; // normalize
-  }
+faceMesh.setOptions({
+  maxNumFaces: 1,
+  refineLandmarks: true,
+});
 
-  // 🎯 GLASSES (Premium alignment)
-  function drawGlasses(lm) {
-    const l = lm[33];
-    const r = lm[263];
+faceMesh.onResults((res) => {
+  const lm = res.multiFaceLandmarks?.[0];
+  if (!lm) return;
+  update3D(lm);
+});
 
-    let x1 = l.x * canvas.width;
-    let y1 = l.y * canvas.height;
-    let x2 = r.x * canvas.width;
-    let y2 = r.y * canvas.height;
+// CAMERA
+const camera = new Camera(video, {
+  onFrame: async () => {
+    await faceMesh.send({ image: video });
+  },
+});
 
-    let centerX = (x1 + x2) / 2;
-    let centerY = (y1 + y2) / 2 - 12;
+// START
+navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+  video.srcObject = stream;
+  video.play();
+  camera.start();
+});
 
-    let angle = Math.atan2(y2 - y1, x2 - x1);
-    let depth = getDepthScale(lm);
+// RENDER
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera3D);
+}
+animate();
 
-    let width = Math.hypot(x2 - x1, y2 - y1) * 2.2 * depth * userScale;
-    let height = width * (productImg.height / productImg.width);
+// RESIZE
+window.addEventListener("resize", () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera3D.aspect = window.innerWidth / window.innerHeight;
+  camera3D.updateProjectionMatrix();
+});
 
-    updateSmooth(centerX, centerY, angle, depth);
+// UI
+window.changeSize = (d) => {
+  userScale += d;
+  if (model) model.scale.set(userScale, userScale, userScale);
+};
 
-    ctx.save();
-    ctx.translate(smooth.x, smooth.y);
-    ctx.rotate(smooth.angle);
-    ctx.drawImage(productImg, -width / 2, -height / 2, width, height);
-    ctx.restore();
-  }
-
-  // 🎯 MASK
-  function drawMask(lm) {
-    const nose = lm[1];
-    const chin = lm[152];
-
-    let x = nose.x * canvas.width;
-    let y = nose.y * canvas.height;
-
-    let faceHeight = (chin.y - nose.y) * canvas.height;
-    let width = faceHeight * 1.5 * userScale;
-    let height = width * (productImg.height / productImg.width);
-
-    ctx.drawImage(productImg, x - width / 2, y - height / 3, width, height);
-  }
-
-  // 🎯 NECKLACE
-  function drawNecklace(lm) {
-    const left = lm[234];
-    const right = lm[454];
-    const chin = lm[152];
-
-    let centerX = ((left.x + right.x) / 2) * canvas.width;
-    let centerY = chin.y * canvas.height + 30;
-
-    let width = Math.abs((right.x - left.x) * canvas.width) * 1.8;
-    let height = width * (productImg.height / productImg.width);
-
-    ctx.drawImage(productImg, centerX - width / 2, centerY, width, height);
-  }
-
-  // 🎯 CAP
-  function drawCap(lm) {
-    const forehead = lm[10];
-    const chin = lm[152];
-
-    let faceHeight = (chin.y - forehead.y) * canvas.height;
-
-    let x = forehead.x * canvas.width;
-    let y = forehead.y * canvas.height - faceHeight * 0.6;
-
-    let width = faceHeight * 1.6 * userScale;
-    let height = width * (productImg.height / productImg.width);
-
-    ctx.drawImage(productImg, x - width / 2, y - height / 2, width, height);
-  }
-
-  function updateSmooth(x, y, angle, scale) {
-    if (!smooth.init) {
-      smooth.x = x;
-      smooth.y = y;
-      smooth.angle = angle;
-      smooth.scale = scale;
-      smooth.init = true;
-    } else {
-      smooth.x = lerp(smooth.x, x);
-      smooth.y = lerp(smooth.y, y);
-      smooth.angle = lerp(smooth.angle, angle);
-      smooth.scale = lerp(smooth.scale, scale);
-    }
-  }
-
-  function render(results) {
-    drawFrame();
-
-    if (!productLoaded) return;
-
-    const faces = results.multiFaceLandmarks;
-    if (!faces || faces.length === 0) return;
-
-    const lm = faces[0];
-
-    switch (productType) {
-      case "glasses":
-        drawGlasses(lm);
-        break;
-      case "mask":
-        drawMask(lm);
-        break;
-      case "necklace":
-        drawNecklace(lm);
-        break;
-      case "cap":
-        drawCap(lm);
-        break;
-    }
-  }
-
-  async function init() {
-    const faceMesh = new FaceMesh({
-      locateFile: (file) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-    });
-
-    faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.6,
-      minTrackingConfidence: 0.6,
-    });
-
-    faceMesh.onResults(render);
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-    });
-
-    video.srcObject = stream;
-
-    video.onloadedmetadata = () => {
-      video.play();
-      resizeCanvas();
-
-      const camera = new Camera(video, {
-        onFrame: async () => {
-          await faceMesh.send({ image: video });
-        },
-      });
-
-      camera.start();
-    };
-  }
-
-  // 📱 MOBILE RESPONSIVE FIX
-  window.addEventListener("resize", resizeCanvas);
-
-  // 🎛 UI Controls
-  window.changeSize = function (d) {
-    userScale = Math.min(2.5, Math.max(0.5, userScale + d));
-  };
-
-  window.capturePhoto = function () {
-    const link = document.createElement("a");
-    link.download = "tryon.png";
-    link.href = canvas.toDataURL();
-    link.click();
-  };
-
-  init();
-})();
+window.goBack = () => history.back();
