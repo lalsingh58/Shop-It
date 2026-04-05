@@ -28,10 +28,20 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
 // MODEL
 let model;
-let currentModel = "";
 let loader = new GLTFLoader();
+let currentModel = "";
 let baseScale = 1;
 
+// MODELS
+const MODELS = {
+  Round: "/assets/models/rect.glb",
+  Square: "/assets/models/round.glb",
+  Oval: "/assets/models/aviator.glb",
+  Heart: "/assets/models/light.glb",
+  Default: "/assets/models/glasses.glb",
+};
+
+// LOAD MODEL
 function loadModel(path) {
   if (currentModel === path) return;
 
@@ -53,50 +63,31 @@ function loadModel(path) {
 }
 
 // POSITION
-function getPos(lm, w, h) {
-  return new THREE.Vector3((lm.x / w) * 2 - 1, 1 - (lm.y / h) * 2, -lm.z * 1.2);
+function getPos(p, w, h) {
+  return new THREE.Vector3((p.x / w) * 2 - 1, 1 - (p.y / h) * 2, -p.z * 1.2);
 }
 
-// AI FEATURES
-function getFeatures(lm, w, h) {
+// FACE SHAPE
+function classify(lm, w, h) {
   const left = getPos(lm[234], w, h);
   const right = getPos(lm[454], w, h);
   const chin = getPos(lm[152], w, h);
   const forehead = getPos(lm[10], w, h);
 
-  return {
-    ratio: forehead.distanceTo(chin) / left.distanceTo(right),
-    width: left.distanceTo(right),
-    height: forehead.distanceTo(chin),
-  };
-}
+  const ratio = forehead.distanceTo(chin) / left.distanceTo(right);
 
-function classify(f) {
-  if (f.ratio > 1.5) return "Oval";
-  if (f.ratio < 1.2) return "Round";
-  if (Math.abs(f.width - f.height) < 0.08) return "Square";
+  if (ratio > 1.5) return "Oval";
+  if (ratio < 1.2) return "Round";
+  if (Math.abs(left.distanceTo(right) - forehead.distanceTo(chin)) < 0.08)
+    return "Square";
   return "Heart";
-}
-
-function getModel(shape) {
-  switch (shape) {
-    case "Round":
-      return "/assets/models/rect.glb";
-    case "Square":
-      return "/assets/models/round.glb";
-    case "Oval":
-      return "/assets/models/aviator.glb";
-    case "Heart":
-      return "/assets/models/light.glb";
-    default:
-      return "/assets/models/glasses.glb";
-  }
 }
 
 // SMOOTH
 let smoothPos = new THREE.Vector3();
 let smoothRot = 0;
 
+// UPDATE MODEL
 function update(lm, w, h) {
   if (!model) return;
 
@@ -109,15 +100,15 @@ function update(lm, w, h) {
     .multiplyScalar(0.5);
   center.z = nose.z - 0.08;
 
-  smoothPos.lerp(center, 0.25);
+  smoothPos.lerp(center, 0.3);
   model.position.copy(smoothPos);
 
   const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-  smoothRot += (angle - smoothRot) * 0.25;
+  smoothRot += (angle - smoothRot) * 0.3;
   model.rotation.set(0, 0, smoothRot);
 
   const faceWidth = getPos(lm[234], w, h).distanceTo(getPos(lm[454], w, h));
-  const scale = faceWidth * 1.3 * baseScale;
+  const scale = faceWidth * 1.4 * baseScale;
 
   model.scale.set(scale, scale, scale);
 }
@@ -126,23 +117,42 @@ function update(lm, w, h) {
 let detector;
 
 async function initAI() {
-  await tf.setBackend("webgl");
+  if (tf.getBackend() !== "webgl") {
+    await tf.setBackend("webgl");
+  }
+
   detector = await faceLandmarksDetection.createDetector(
     faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
-    { runtime: "tfjs" },
+    { runtime: "tfjs", maxFaces: 1 },
   );
 }
 
-// CAMERA
+// CAMERA (FIXED 🔥)
 async function startCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-  await video.play();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+    });
+
+    video.srcObject = stream;
+
+    await new Promise((resolve) => {
+      video.onloadedmetadata = () => {
+        video.play();
+        resolve();
+      };
+    });
+
+    faceLabel.innerText = "✅ Camera ready";
+  } catch (err) {
+    console.error(err);
+    faceLabel.innerText = "❌ Camera blocked!";
+  }
 }
 
-// LOOP
+// LOOP (FIXED 🔥)
 async function detect() {
-  if (!video.videoWidth) {
+  if (!detector || video.readyState !== 4) {
     requestAnimationFrame(detect);
     return;
   }
@@ -150,15 +160,17 @@ async function detect() {
   const faces = await detector.estimateFaces(video);
 
   if (faces.length > 0) {
-    const lm = faces[0].keypoints;
+    const lm = faces[0].keypoints; // ✅ CORRECT FORMAT
     const w = video.videoWidth;
     const h = video.videoHeight;
 
-    const shape = classify(getFeatures(lm, w, h));
+    const shape = classify(lm, w, h);
     faceLabel.innerText = "👓 " + shape;
 
-    loadModel(getModel(shape));
+    loadModel(MODELS[shape] || MODELS.Default);
     update(lm, w, h);
+  } else {
+    faceLabel.innerText = "😶 Show your face";
   }
 
   requestAnimationFrame(detect);
@@ -170,7 +182,7 @@ document.getElementById("plusBtn").onclick = () => (baseScale += 0.1);
 
 window.goBack = () => history.back();
 
-// START
+// INIT
 async function init() {
   await startCamera();
   await initAI();
