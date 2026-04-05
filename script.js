@@ -1,7 +1,7 @@
-// Scroll animation
 const elements = document.querySelectorAll(".fade-in");
 
-window.addEventListener("scroll", () => {
+// Scroll animation function
+function showOnScroll() {
   elements.forEach((el) => {
     const position = el.getBoundingClientRect().top;
     const screenHeight = window.innerHeight;
@@ -10,4 +10,10 @@ window.addEventListener("scroll", () => {
       el.classList.add("show");
     }
   });
-});
+}
+
+// Run on scroll
+window.addEventListener("scroll", showOnScroll);
+
+// Run on page load (IMPORTANT FIX)
+window.addEventListener("load", showOnScroll);

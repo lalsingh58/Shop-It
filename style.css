@@ -1,4 +1,6 @@
-/* Reset */
+/* ========================= */
+/* RESET */
+/* ========================= */
 * {
   margin: 0;
   padding: 0;
@@ -6,30 +8,40 @@
   font-family: "Segoe UI", sans-serif;
 }
 
-/* Global container */
-.container {
-  width: 90%;
-  max-width: 1400px;
-  margin: auto;
-}
-
-/* Body */
+/* ========================= */
+/* BODY */
+/* ========================= */
 body {
   background: #0f172a;
   color: white;
+  line-height: 1.6;
 }
 
-/* Navbar */
+/* ========================= */
+/* CONTAINER (MAIN FIX) */
+/* ========================= */
+.container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 0 20px;
+}
+
+/* ========================= */
+/* NAVBAR */
+/* ========================= */
 .navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 30px;
-  backdrop-filter: blur(10px);
-  background: rgba(2, 6, 23, 0.7);
   position: sticky;
   top: 0;
   z-index: 100;
+  backdrop-filter: blur(10px);
+  background: rgba(2, 6, 23, 0.7);
+}
+
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
 }
 
 .logo {
@@ -39,13 +51,14 @@ body {
 }
 
 .nav-links a {
-  margin-left: 20px;
+  margin-left: 25px;
   text-decoration: none;
   color: white;
   position: relative;
+  font-size: 15px;
 }
 
-/* Nav Hover */
+/* Hover underline */
 .nav-links a::after {
   content: "";
   position: absolute;
@@ -61,14 +74,16 @@ body {
   width: 100%;
 }
 
-/* Hero */
+/* ========================= */
+/* HERO */
+/* ========================= */
 .hero {
   text-align: center;
-  padding: 80px 20px;
+  padding: 100px 20px;
 }
 
 .hero h2 {
-  font-size: 40px;
+  font-size: 42px;
   background: linear-gradient(90deg, #38bdf8, #6366f1);
   -webkit-background-clip: text;
   color: transparent;
@@ -78,18 +93,20 @@ body {
   margin: 15px auto;
   max-width: 600px;
   color: #cbd5f5;
+  font-size: 16px;
 }
 
-/* Button */
+/* BUTTON */
 .btn {
   display: inline-block;
-  margin-top: 20px;
-  padding: 12px 25px;
+  margin-top: 25px;
+  padding: 12px 28px;
   background: #38bdf8;
   color: black;
   border-radius: 8px;
   text-decoration: none;
   transition: 0.3s;
+  font-weight: 500;
 }
 
 .btn:hover {
@@ -97,12 +114,17 @@ body {
   background: #0ea5e9;
 }
 
-/* Categories */
+/* ========================= */
+/* CATEGORIES */
+/* ========================= */
 .categories {
+  padding: 40px 0;
+}
+
+.grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  padding: 40px;
 }
 
 .cat {
@@ -120,10 +142,16 @@ body {
   background: #0f172a;
 }
 
-/* About */
+/* ========================= */
+/* ABOUT */
+/* ========================= */
 .about {
-  padding: 50px 20px;
+  padding: 60px 20px;
   text-align: center;
+}
+
+.about h2 {
+  margin-bottom: 15px;
 }
 
 .about p {
@@ -132,18 +160,24 @@ body {
   color: #cbd5f5;
 }
 
-/* Footer */
+/* ========================= */
+/* FOOTER */
+/* ========================= */
 footer {
   text-align: center;
   padding: 20px;
   background: #020617;
+  margin-top: 40px;
+  font-size: 14px;
 }
 
-/* Animations */
+/* ========================= */
+/* ANIMATIONS */
+/* ========================= */
 .fade-in {
   opacity: 0;
-  transform: translateY(30px);
-  transition: 0.8s;
+  transform: translateY(40px);
+  transition: all 0.8s ease;
 }
 
 .fade-in.show {
@@ -152,12 +186,12 @@ footer {
 }
 
 /* ========================= */
-/* 📱 RESPONSIVE DESIGN */
+/* RESPONSIVE */
 /* ========================= */
 
 /* Tablet */
 @media (max-width: 900px) {
-  .categories {
+  .grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -168,24 +202,26 @@ footer {
 
 /* Mobile */
 @media (max-width: 600px) {
-  .navbar {
+  .nav-container {
     flex-direction: column;
+    gap: 10px;
   }
 
   .nav-links {
-    margin-top: 10px;
+    text-align: center;
   }
 
   .nav-links a {
     margin: 10px;
+    display: inline-block;
   }
 
-  .categories {
+  .grid {
     grid-template-columns: 1fr;
   }
 
   .hero {
-    padding: 50px 15px;
+    padding: 60px 15px;
   }
 
   .hero h2 {
