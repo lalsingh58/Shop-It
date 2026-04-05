@@ -2,18 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
-    <title>Shop It - AI 3D Try On</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../js/tryon.js" />
 
-    <link rel="stylesheet" href="../css/tryon.css" />
+    <title>AI 3D Try On</title>
 
-    <!-- TensorFlow -->
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: black;
+      }
+
+      video,
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+      }
+
+      .top-bar {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        color: white;
+      }
+    </style>
+
+    <!-- ✅ TensorFlow (correct order) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
 
     <!-- Three.js -->
     <script type="importmap">
@@ -31,18 +56,9 @@
     <canvas id="threeCanvas"></canvas>
 
     <div class="top-bar">
-      <button onclick="goBack()">⬅ Back</button>
-      <h2>AI Try On</h2>
-      <div></div>
+      <button onclick="history.back()">⬅ Back</button>
     </div>
 
-    <div class="controls">
-      <button id="minusBtn">−</button>
-      <button id="plusBtn">+</button>
-    </div>
-
-    <div id="faceLabel">📷 Starting camera...</div>
-
-    <script type="module" src="../js/tryon.js"></script>
+    <script type="module" src="./tryon.js"></script>
   </body>
 </html>
