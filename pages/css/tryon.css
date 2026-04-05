@@ -1,75 +1,177 @@
 /* ===== BASE ===== */
 body {
   margin: 0;
-  text-align: center;
-  font-family: Arial, sans-serif;
-  background: #0f172a;
+  background: black;
   color: white;
+  font-family: sans-serif;
+  overflow: hidden; /* prevent scroll in full screen */
 }
 
-/* ===== TITLE ===== */
-h2 {
-  margin-top: 20px;
-  font-size: 1.6rem;
+/* ===== TOP BAR ===== */
+.top-bar {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 15px;
+  z-index: 10;
+  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.4);
 }
 
-/* ===== CAMERA WRAPPER ===== */
+.top-bar h3 {
+  margin: 0;
+  font-size: 16px;
+  text-align: center;
+  flex: 1;
+}
+
+.top-bar button {
+  background: #38bdf8;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ===== CAMERA ===== */
 .camera-container {
-  position: relative;
-  width: 95%;
-  max-width: 700px;
-  margin: 30px auto;
-  aspect-ratio: 4 / 3;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-/* ===== VIDEO + CANVAS ===== */
+/* Video + Canvas */
 video,
 canvas {
   position: absolute;
   width: 100%;
   height: 100%;
-  inset: 0;
   object-fit: cover;
 }
 
-/* Layering */
-video {
-  z-index: 0;
+/* ===== CONTROLS ===== */
+.controls {
+  position: fixed;
+  bottom: 25px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  z-index: 10;
 }
 
-canvas {
-  z-index: 1;
+/* Buttons */
+.controls button {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  backdrop-filter: blur(10px);
+  transition: 0.2s;
+}
+
+.controls button:hover {
+  transform: scale(1.1);
+}
+
+/* Capture button special */
+.controls button:nth-child(2) {
+  width: 70px;
+  height: 70px;
+  font-size: 22px;
+  background: white;
+  color: black;
 }
 
 /* ===== RESPONSIVE ===== */
 
-/* Tablet */
-@media (max-width: 768px) {
-  h2 {
-    font-size: 1.4rem;
+/* Tablets */
+@media (max-width: 900px) {
+  .top-bar {
+    padding: 8px 12px;
   }
 
-  .camera-container {
-    max-width: 90%;
+  .top-bar h3 {
+    font-size: 14px;
+  }
+
+  .top-bar button {
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+
+  .controls {
+    gap: 15px;
+    bottom: 20px;
+  }
+
+  .controls button {
+    width: 50px;
+    height: 50px;
+  }
+
+  .controls button:nth-child(2) {
+    width: 65px;
+    height: 65px;
   }
 }
 
 /* Mobile */
-@media (max-width: 480px) {
-  h2 {
-    font-size: 1.2rem;
-    padding: 0 10px;
+@media (max-width: 600px) {
+  .top-bar {
+    padding: 6px 10px;
   }
 
-  .camera-container {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    aspect-ratio: unset;
-    border-radius: 0;
+  .top-bar h3 {
+    font-size: 13px;
+  }
+
+  .top-bar button {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+
+  .controls {
+    gap: 12px;
+    bottom: 15px;
+  }
+
+  .controls button {
+    width: 45px;
+    height: 45px;
+    font-size: 16px;
+  }
+
+  .controls button:nth-child(2) {
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 400px) {
+  .top-bar h3 {
+    font-size: 12px;
+  }
+
+  .controls button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .controls button:nth-child(2) {
+    width: 55px;
+    height: 55px;
   }
 }

@@ -1,19 +1,30 @@
 <!doctype html>
 <html>
   <head>
-    <title>Shop It - Virtual Try On</title>
+    <title>Shop It - Try On</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="../css/tryon.css" />
   </head>
 
   <body>
-    <h2>👓 Virtual Glasses Try-On</h2>
+    <div class="top-bar">
+      <button onclick="goBack()">⬅ Back</button>
+      <h3>Virtual Try-On</h3>
+    </div>
 
     <div class="camera-container">
       <video id="video" autoplay playsinline></video>
       <canvas id="canvas"></canvas>
     </div>
 
+    <!-- Controls -->
+    <div class="controls">
+      <button onclick="changeSize(-0.1)">➖</button>
+      <button onclick="capture()">📸</button>
+      <button onclick="changeSize(0.1)">➕</button>
+    </div>
+
+    <!-- MediaPipe -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 

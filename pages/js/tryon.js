@@ -2,33 +2,21 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-/* ===== START CAMERA (HD + FRONT CAMERA) ===== */
+/* ===== CAMERA ===== */
 navigator.mediaDevices
   .getUserMedia({
-    video: {
-      facingMode: "user",
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-    },
+    video: { facingMode: "user" },
   })
-  .then((stream) => {
-    video.srcObject = stream;
-  })
-  .catch((err) => {
-    alert("Camera access denied ❌");
-    console.error(err);
-  });
+  .then((stream) => (video.srcObject = stream));
 
-/* ===== RESIZE CANVAS ===== */
+/* ===== CANVAS FIX ===== */
 function resizeCanvas() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 }
-
 video.addEventListener("loadedmetadata", resizeCanvas);
-window.addEventListener("resize", resizeCanvas);
 
-/* ===== SETUP FACEMESH ===== */
+/* ===== FACE MESH ===== */
 const faceMesh = new FaceMesh({
   locateFile: (file) =>
     `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
@@ -37,92 +25,123 @@ const faceMesh = new FaceMesh({
 faceMesh.setOptions({
   maxNumFaces: 1,
   refineLandmarks: true,
-  minDetectionConfidence: 0.6,
-  minTrackingConfidence: 0.6,
 });
 
-/* ===== LOAD SELECTED PRODUCT ===== */
-const productImg = new Image();
-const selected = localStorage.getItem("selectedProduct");
-const productType = localStorage.getItem("productType");
+/* ===== PRODUCT ===== */
+const img = new Image();
+const type = localStorage.getItem("productType") || "glasses";
+img.src = localStorage.getItem("selectedProduct");
 
-productImg.src = selected || "../assets/glasses/g1.png";
+/* ===== SIZE CONTROL ===== */
+let userScale = 1;
 
-/* ===== SMOOTH MOVEMENT ===== */
-let prevX = 0;
-let prevY = 0;
+/* ===== SMOOTHING ===== */
+let prevX = 0,
+  prevY = 0;
 
-/* ===== FACEMESH RESULTS ===== */
+/* ===== MAIN ENGINE ===== */
 faceMesh.onResults((results) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   if (!results.multiFaceLandmarks?.length) return;
 
-  const landmarks = results.multiFaceLandmarks[0];
+  const lm = results.multiFaceLandmarks[0];
 
-  const leftEye = landmarks[33];
-  const rightEye = landmarks[263];
+  let x,
+    y,
+    width,
+    height,
+    angle = 0;
 
-  const x1 = leftEye.x * canvas.width;
-  const y1 = leftEye.y * canvas.height;
+  /* ===== GLASSES ===== */
+  if (type === "glasses") {
+    const l = lm[33],
+      r = lm[263];
 
-  const x2 = rightEye.x * canvas.width;
-  const y2 = rightEye.y * canvas.height;
+    const x1 = l.x * canvas.width;
+    const y1 = l.y * canvas.height;
+    const x2 = r.x * canvas.width;
+    const y2 = r.y * canvas.height;
 
-  /* ===== DISTANCE ===== */
-  const eyeDistance = Math.hypot(x2 - x1, y2 - y1);
+    const dist = Math.hypot(x2 - x1, y2 - y1);
 
-  /* ===== DYNAMIC SETTINGS BASED ON PRODUCT ===== */
-  let scale = 1.8;
-  let heightRatio = 0.55;
-  let yOffset = 2.0;
+    width = dist * 1.8 * userScale;
+    height = width * 0.55;
 
-  if (productType === "cap") {
-    scale = 2.5;
-    heightRatio = 0.9;
-    yOffset = 1.3;
+    x = (x1 + x2) / 2;
+    y = (y1 + y2) / 2;
+
+    angle = Math.atan2(y2 - y1, x2 - x1);
   }
 
-  if (productType === "earring") {
-    scale = 0.9;
-    heightRatio = 1.2;
-    yOffset = 1.8;
+  /* ===== CAP ===== */
+  if (type === "cap") {
+    const f = lm[10];
+    x = f.x * canvas.width;
+    y = f.y * canvas.height - 60;
+
+    width = 300 * userScale;
+    height = 200 * userScale;
   }
 
-  /* ===== SIZE ===== */
-  const width = eyeDistance * scale;
-  const height = width * heightRatio;
+  /* ===== EARRINGS ===== */
+  if (type === "earring") {
+    const l = lm[234];
+    const r = lm[454];
 
-  let centerX = (x1 + x2) / 2;
-  let centerY = (y1 + y2) / 2;
+    const size = 40 * userScale;
 
-  /* ===== SMOOTHING ===== */
-  centerX = prevX * 0.6 + centerX * 0.4;
-  centerY = prevY * 0.6 + centerY * 0.4;
+    ctx.drawImage(img, l.x * canvas.width, l.y * canvas.height, size, size);
+    ctx.drawImage(img, r.x * canvas.width, r.y * canvas.height, size, size);
+    return;
+  }
 
-  prevX = centerX;
-  prevY = centerY;
+  /* ===== WIG ===== */
+  if (type === "wig") {
+    const f = lm[10];
+    const c = lm[152];
 
-  /* ===== ROTATION ===== */
-  const angle = Math.atan2(y2 - y1, x2 - x1);
+    const h = (c.y - f.y) * canvas.height * 2;
 
-  if (!productImg.complete) return;
+    width = h * 0.8 * userScale;
+    height = h * 1.2 * userScale;
+
+    x = f.x * canvas.width;
+    y = f.y * canvas.height;
+  }
+
+  /* ===== SMOOTH ===== */
+  x = prevX * 0.7 + x * 0.3;
+  y = prevY * 0.7 + y * 0.3;
+
+  prevX = x;
+  prevY = y;
 
   /* ===== DRAW ===== */
   ctx.save();
-  ctx.translate(centerX, centerY);
+  ctx.translate(x, y);
   ctx.rotate(angle);
 
-  ctx.drawImage(productImg, -width / 2, -height / yOffset, width, height);
-
+  ctx.drawImage(img, -width / 2, -height / 2, width, height);
   ctx.restore();
 });
 
-/* ===== CONNECT CAMERA ===== */
-const camera = new Camera(video, {
-  onFrame: async () => {
-    await faceMesh.send({ image: video });
-  },
-});
+/* ===== CAMERA LOOP ===== */
+new Camera(video, {
+  onFrame: async () => await faceMesh.send({ image: video }),
+}).start();
 
-camera.start();
+/* ===== UI FUNCTIONS ===== */
+function changeSize(val) {
+  userScale += val;
+}
+
+function capture() {
+  const link = document.createElement("a");
+  link.download = "tryon.png";
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+function goBack() {
+  history.back();
+}
