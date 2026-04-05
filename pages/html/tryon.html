@@ -3,38 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="../js/tryon.js" />
 
-    <title>AI 3D Try On</title>
+    <title>AI Try On</title>
 
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        background: black;
-      }
+    <link rel="stylesheet" href="../css/tryon.css" />
 
-      video,
-      canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transform: scaleX(-1);
-      }
-
-      .top-bar {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        z-index: 10;
-        color: white;
-      }
-    </style>
-
-    <!-- ✅ TensorFlow (correct order) -->
+    <!-- TensorFlow -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
@@ -57,8 +31,16 @@
 
     <div class="top-bar">
       <button onclick="history.back()">⬅ Back</button>
+      <h3>AI Try On</h3>
     </div>
 
-    <script type="module" src="./tryon.js"></script>
+    <div class="controls">
+      <button id="minusBtn">−</button>
+      <button id="plusBtn">+</button>
+    </div>
+
+    <div id="faceLabel">📷 Starting camera...</div>
+
+    <script type="module" src="../js/tryon.js"></script>
   </body>
 </html>
