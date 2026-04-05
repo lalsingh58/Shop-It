@@ -6,6 +6,15 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("threeCanvas");
 const faceLabel = document.getElementById("faceLabel");
 
+// ================= GET SELECTED PRODUCT =================
+let selectedModel = localStorage.getItem("selectedModel");
+let productType = localStorage.getItem("productType");
+
+// fallback safety
+if (!selectedModel) {
+  selectedModel = "../assets/models/glasses/g1.glb";
+}
+
 // ================= THREE =================
 const scene = new THREE.Scene();
 
@@ -25,7 +34,12 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-scene.add(new THREE.AmbientLight(0xffffff, 1));
+// 🔥 Better lighting
+scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(0, 1, 2);
+scene.add(dirLight);
 
 // ================= MODEL =================
 let model = null;
@@ -33,19 +47,9 @@ let currentModelPath = "";
 let loader = new GLTFLoader();
 let baseScale = 1;
 
-// MODELS (make sure these paths exist!)
-const MODELS = {
-  Round: "/assets/models/rect.glb",
-  Square: "/assets/models/round.glb",
-  Oval: "/assets/models/aviator.glb",
-  Heart: "/assets/models/light.glb",
-  Default: "/assets/models/glasses.glb",
-};
-
 // ================= FALLBACK =================
 function createFallbackGlasses() {
   const group = new THREE.Group();
-
   const mat = new THREE.MeshStandardMaterial({ color: 0x000000 });
 
   const left = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), mat);
@@ -62,8 +66,7 @@ function createFallbackGlasses() {
 
 // ================= LOAD MODEL =================
 function loadModel(path) {
-  if (!path) return;
-  if (currentModelPath === path) return;
+  if (!path || currentModelPath === path) return;
 
   if (model) {
     scene.remove(model);
@@ -75,13 +78,15 @@ function loadModel(path) {
     (gltf) => {
       model = gltf.scene;
 
+      // center model
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
-
       model.position.sub(center);
 
-      // 🔥 FIX: DO NOT shrink model too much
-      model.scale.set(1, 1, 1);
+      // 🔥 auto scale normalize
+      const size = box.getSize(new THREE.Vector3()).length();
+      const scaleFactor = 1.5 / size;
+      model.scale.setScalar(scaleFactor);
 
       // ensure visible
       model.traverse((child) => {
@@ -143,8 +148,16 @@ function updateModel(lm, w, h) {
     .addVectors(leftEye, rightEye)
     .multiplyScalar(0.5);
 
-  // 🔥 FIX DEPTH
-  center.z = nose.z - 0.3;
+  // 🔥 adjust based on product type
+  if (productType === "cap" || productType === "wig") {
+    center.y += 0.3;
+    center.z = nose.z - 0.6;
+  } else if (productType === "earring") {
+    center.y -= 0.2;
+    center.z = nose.z - 0.2;
+  } else {
+    center.z = nose.z - 0.3; // glasses
+  }
 
   // smooth movement
   smoothPos.lerp(center, 0.3);
@@ -155,10 +168,16 @@ function updateModel(lm, w, h) {
   smoothRot += (angle - smoothRot) * 0.3;
   model.rotation.set(0, 0, smoothRot);
 
-  // 🔥 FIX SCALE
+  // scale
   const faceWidth = getPos(lm[234], w, h).distanceTo(getPos(lm[454], w, h));
 
-  const scale = faceWidth * 2.5 * baseScale;
+  let scaleMultiplier = 2.5;
+
+  if (productType === "cap") scaleMultiplier = 3.5;
+  if (productType === "wig") scaleMultiplier = 4;
+  if (productType === "earring") scaleMultiplier = 1.2;
+
+  const scale = faceWidth * scaleMultiplier * baseScale;
   model.scale.set(scale, scale, scale);
 }
 
@@ -199,7 +218,6 @@ async function startCamera() {
     });
 
     faceLabel.innerText = "✅ Camera Ready";
-    console.log("📷 Camera started");
   } catch (err) {
     console.error("❌ Camera error:", err);
     faceLabel.innerText = "❌ Camera blocked!";
@@ -208,6 +226,8 @@ async function startCamera() {
 }
 
 // ================= LOOP =================
+let lastLoadedModel = "";
+
 async function detect() {
   if (!detector || video.readyState !== 4) {
     requestAnimationFrame(detect);
@@ -223,9 +243,14 @@ async function detect() {
       const h = video.videoHeight;
 
       const shape = classify(lm, w, h);
-      faceLabel.innerText = "👓 " + shape;
+      faceLabel.innerText = `👓 ${shape}`;
 
-      loadModel(MODELS[shape] || MODELS.Default);
+      // ✅ load only once
+      if (selectedModel && lastLoadedModel !== selectedModel) {
+        loadModel(selectedModel);
+        lastLoadedModel = selectedModel;
+      }
+
       updateModel(lm, w, h);
     } else {
       faceLabel.innerText = "😶 Show your face";
@@ -253,8 +278,8 @@ async function init() {
   await startCamera();
   await initAI();
 
-  // 🔥 FORCE DEFAULT MODEL LOAD
-  loadModel(MODELS.Default);
+  // 🔥 load selected model initially
+  loadModel(selectedModel);
 
   detect();
 }
