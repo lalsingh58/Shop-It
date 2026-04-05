@@ -2,9 +2,15 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-/* ===== START CAMERA ===== */
+/* ===== START CAMERA (HD + FRONT CAMERA) ===== */
 navigator.mediaDevices
-  .getUserMedia({ video: true })
+  .getUserMedia({
+    video: {
+      facingMode: "user",
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    },
+  })
   .then((stream) => {
     video.srcObject = stream;
   })
@@ -13,10 +19,10 @@ navigator.mediaDevices
     console.error(err);
   });
 
-/* ===== RESIZE CANVAS (IMPORTANT FIX) ===== */
+/* ===== RESIZE CANVAS ===== */
 function resizeCanvas() {
-  canvas.width = video.clientWidth;
-  canvas.height = video.clientHeight;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 }
 
 video.addEventListener("loadedmetadata", resizeCanvas);
@@ -35,11 +41,12 @@ faceMesh.setOptions({
   minTrackingConfidence: 0.6,
 });
 
-/* ===== LOAD PRODUCT IMAGE ===== */
-const glasses = new Image();
+/* ===== LOAD SELECTED PRODUCT ===== */
+const productImg = new Image();
 const selected = localStorage.getItem("selectedProduct");
+const productType = localStorage.getItem("productType");
 
-glasses.src = selected || "../assets/glasses/g1.png";
+productImg.src = selected || "../assets/glasses/g1.png";
 
 /* ===== SMOOTH MOVEMENT ===== */
 let prevX = 0;
@@ -62,22 +69,36 @@ faceMesh.onResults((results) => {
   const x2 = rightEye.x * canvas.width;
   const y2 = rightEye.y * canvas.height;
 
-  /* ===== CALCULATIONS ===== */
-  const eyeDistance = Math.abs(x2 - x1);
+  /* ===== DISTANCE ===== */
+  const eyeDistance = Math.hypot(x2 - x1, y2 - y1);
 
-  const scale = 1.1;
-  const heightRatio = 0.35;
-  const yOffset = 2.6;
+  /* ===== DYNAMIC SETTINGS BASED ON PRODUCT ===== */
+  let scale = 1.8;
+  let heightRatio = 0.55;
+  let yOffset = 2.0;
 
-  const glassesWidth = eyeDistance * scale;
-  const glassesHeight = glassesWidth * heightRatio;
+  if (productType === "cap") {
+    scale = 2.5;
+    heightRatio = 0.9;
+    yOffset = 1.3;
+  }
+
+  if (productType === "earring") {
+    scale = 0.9;
+    heightRatio = 1.2;
+    yOffset = 1.8;
+  }
+
+  /* ===== SIZE ===== */
+  const width = eyeDistance * scale;
+  const height = width * heightRatio;
 
   let centerX = (x1 + x2) / 2;
   let centerY = (y1 + y2) / 2;
 
   /* ===== SMOOTHING ===== */
-  centerX = prevX * 0.7 + centerX * 0.3;
-  centerY = prevY * 0.7 + centerY * 0.3;
+  centerX = prevX * 0.6 + centerX * 0.4;
+  centerY = prevY * 0.6 + centerY * 0.4;
 
   prevX = centerX;
   prevY = centerY;
@@ -85,31 +106,23 @@ faceMesh.onResults((results) => {
   /* ===== ROTATION ===== */
   const angle = Math.atan2(y2 - y1, x2 - x1);
 
-  if (!glasses.complete) return;
+  if (!productImg.complete) return;
 
   /* ===== DRAW ===== */
   ctx.save();
   ctx.translate(centerX, centerY);
   ctx.rotate(angle);
 
-  ctx.drawImage(
-    glasses,
-    -glassesWidth / 2,
-    -glassesHeight / yOffset,
-    glassesWidth,
-    glassesHeight,
-  );
+  ctx.drawImage(productImg, -width / 2, -height / yOffset, width, height);
 
   ctx.restore();
 });
 
-/* ===== CONNECT CAMERA TO FACEMESH ===== */
+/* ===== CONNECT CAMERA ===== */
 const camera = new Camera(video, {
   onFrame: async () => {
     await faceMesh.send({ image: video });
   },
-  width: 640,
-  height: 480,
 });
 
 camera.start();
