@@ -86,7 +86,15 @@ const products = [
 
 const container = document.getElementById("product-container");
 
-/* ✅ ADD TO CART FUNCTION */
+/* CATEGORY TITLES */
+const categories = {
+  glasses: "👓 Glasses",
+  cap: "🧢 Caps",
+  wig: "💇 Wigs",
+  earring: "💍 Earrings",
+};
+
+/* ADD TO CART */
 function addToCart(product) {
   let cart = JSON.parse(localStorage.getItem("cart")) || [];
 
@@ -104,36 +112,60 @@ function addToCart(product) {
   }
 
   localStorage.setItem("cart", JSON.stringify(cart));
-
   alert(product.name + " added to cart 🛒");
 }
 
-/* ✅ RENDER PRODUCTS */
-products.forEach((product) => {
-  const card = document.createElement("div");
-  card.className = "card";
+/* GROUP PRODUCTS BY CATEGORY */
+const grouped = {};
 
-  card.innerHTML = `
-    <img src="${product.img}" alt="${product.name}">
-    <div class="card-content">
-      <h3>${product.name}</h3>
-      <p class="price">₹${product.price}</p>
-      <button class="btn try-btn">Try</button>
-      <button class="btn cart-btn">Add to Cart</button>
-    </div>
+products.forEach((p) => {
+  if (!grouped[p.type]) {
+    grouped[p.type] = [];
+  }
+  grouped[p.type].push(p);
+});
+
+/* RENDER CATEGORY SECTIONS */
+Object.keys(categories).forEach((type) => {
+  if (!grouped[type]) return;
+
+  const section = document.createElement("div");
+  section.className = "category-section";
+
+  section.innerHTML = `
+    <h2 class="category-title">${categories[type]}</h2>
+    <div class="product-grid" id="${type}-grid"></div>
   `;
 
-  // Try button
-  card.querySelector(".try-btn").onclick = () => {
-    localStorage.setItem("selectedProduct", product.img);
-    localStorage.setItem("productType", product.type);
-    window.location.href = "../html/tryon.html";
-  };
+  container.appendChild(section);
 
-  // ✅ WORKING CART BUTTON
-  card.querySelector(".cart-btn").onclick = () => {
-    addToCart(product);
-  };
+  const grid = section.querySelector(".product-grid");
 
-  container.appendChild(card);
+  grouped[type].forEach((product) => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <img src="${product.img}" alt="${product.name}">
+      <div class="card-content">
+        <h3>${product.name}</h3>
+        <p class="price">₹${product.price}</p>
+        <button class="btn try-btn">Try</button>
+        <button class="btn cart-btn">Add to Cart</button>
+      </div>
+    `;
+
+    // Try
+    card.querySelector(".try-btn").onclick = () => {
+      localStorage.setItem("selectedProduct", product.img);
+      localStorage.setItem("productType", product.type);
+      window.location.href = "../html/tryon.html";
+    };
+
+    // Cart
+    card.querySelector(".cart-btn").onclick = () => {
+      addToCart(product);
+    };
+    grid.appendChild(card);
+  });
 });

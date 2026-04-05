@@ -1,43 +1,42 @@
-/* Reset */
+/* RESET */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* Body */
+/* BODY */
 body {
   font-family: "Segoe UI", sans-serif;
   background: #0f172a;
   color: white;
 }
 
-/* ========================= */
-/* CONTAINER (VERY IMPORTANT) */
-/* ========================= */
+/* CONTAINER */
 .container {
   width: 95%;
   max-width: 1400px;
   margin: auto;
 }
 
-/* ========================= */
 /* NAVBAR */
-/* ========================= */
 .navbar {
   backdrop-filter: blur(10px);
   background: rgba(2, 6, 23, 0.7);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .nav-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 0;
+  padding: 18px 0;
 }
 
 .logo {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: bold;
   color: #38bdf8;
 }
@@ -49,7 +48,7 @@ body {
   position: relative;
 }
 
-/* Hover underline */
+/* Hover */
 .nav-links a::after {
   content: "";
   position: absolute;
@@ -65,25 +64,32 @@ body {
   width: 100%;
 }
 
-/* ========================= */
-/* TITLE */
-/* ========================= */
-h2 {
+/* PAGE TITLE */
+.page-title {
   text-align: center;
-  padding: 30px 0 10px;
+  padding: 30px 0;
   font-size: 32px;
 }
 
 /* ========================= */
-/* PRODUCT GRID */
+/* CATEGORY SECTION */
 /* ========================= */
-.product-container {
-  width: 95%;
-  max-width: 1400px;
-  margin: 20px auto;
+.category-section {
+  margin-bottom: 50px;
+}
+
+.category-title {
+  font-size: 26px;
+  margin-bottom: 20px;
+  border-left: 5px solid #38bdf8;
+  padding-left: 12px;
+}
+
+/* GRID */
+.product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 25px;
 }
 
 /* ========================= */
@@ -98,26 +104,25 @@ h2 {
 }
 
 .card:hover {
-  transform: translateY(-10px) scale(1.02);
+  transform: translateY(-10px) scale(1.03);
 }
 
-/* Image */
+/* IMAGE */
 .card img {
   width: 100%;
-  height: 220px;
+  height: 200px;
   object-fit: contain;
   background: #0f172a;
   padding: 15px;
 }
 
-/* Content */
+/* CONTENT */
 .card-content {
   padding: 15px;
 }
 
 .card h3 {
-  font-size: 18px;
-  margin-bottom: 5px;
+  font-size: 17px;
 }
 
 .price {
@@ -126,7 +131,7 @@ h2 {
   font-weight: bold;
 }
 
-/* Buttons */
+/* BUTTONS */
 .btn {
   width: 100%;
   padding: 10px;
@@ -135,8 +140,10 @@ h2 {
   border-radius: 8px;
   cursor: pointer;
   transition: 0.3s;
+  font-weight: 500;
 }
 
+/* Try */
 .try-btn {
   background: #22c55e;
   color: black;
@@ -146,6 +153,7 @@ h2 {
   background: #16a34a;
 }
 
+/* Cart */
 .cart-btn {
   background: #3b82f6;
   color: white;
@@ -156,27 +164,107 @@ h2 {
 }
 
 /* ========================= */
-/* RESPONSIVE */
+/* RESPONSIVE (PRO LEVEL) */
 /* ========================= */
 
-/* Tablet */
-@media (max-width: 900px) {
-  .product-container {
-    grid-template-columns: repeat(2, 1fr);
+/* Large Screens (1400px+) */
+@media (min-width: 1400px) {
+  .product-grid {
+    grid-template-columns: repeat(5, 1fr);
   }
 }
 
-/* Mobile */
-@media (max-width: 500px) {
-  .product-container {
+/* Laptop */
+@media (max-width: 1200px) {
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .container {
+    width: 92%;
+  }
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .page-title {
+    font-size: 28px;
+  }
+
+  .category-title {
+    font-size: 22px;
+  }
+
+  .nav-inner {
+    padding: 15px 0;
+  }
+}
+
+/* Mobile (Large phones) */
+@media (max-width: 600px) {
+  .container {
+    width: 90%;
+  }
+
+  .nav-inner {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .nav-links {
+    text-align: center;
+  }
+
+  .nav-links a {
+    margin: 8px;
+    display: inline-block;
+  }
+
+  .product-grid {
     grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .card {
+    border-radius: 12px;
   }
 
   .card img {
     height: 180px;
+    padding: 10px;
   }
 
-  h2 {
-    font-size: 24px;
+  .card-content {
+    padding: 12px;
+  }
+
+  .btn {
+    padding: 9px;
+    font-size: 14px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 400px) {
+  .page-title {
+    font-size: 22px;
+  }
+
+  .category-title {
+    font-size: 18px;
+  }
+
+  .card img {
+    height: 150px;
+  }
+
+  .btn {
+    font-size: 13px;
+    padding: 8px;
   }
 }

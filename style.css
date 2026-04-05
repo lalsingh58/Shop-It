@@ -1,6 +1,4 @@
-/* ========================= */
-/* RESET */
-/* ========================= */
+/* ===== RESET ===== */
 * {
   margin: 0;
   padding: 0;
@@ -8,27 +6,22 @@
   font-family: "Segoe UI", sans-serif;
 }
 
-/* ========================= */
-/* BODY */
-/* ========================= */
+/* ===== BASE ===== */
 body {
   background: #0f172a;
   color: white;
   line-height: 1.6;
 }
 
-/* ========================= */
-/* CONTAINER (MAIN FIX) */
-/* ========================= */
+/* ===== LAYOUT ===== */
 .container {
+  width: 100%;
   max-width: 1100px;
   margin: auto;
-  padding: 0 20px;
+  padding: 0 16px;
 }
 
-/* ========================= */
-/* NAVBAR */
-/* ========================= */
+/* ===== NAVBAR ===== */
 .navbar {
   position: sticky;
   top: 0;
@@ -41,6 +34,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   padding: 15px 0;
 }
 
@@ -50,15 +44,20 @@ body {
   color: #38bdf8;
 }
 
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 .nav-links a {
-  margin-left: 25px;
+  margin-left: 20px;
   text-decoration: none;
   color: white;
   position: relative;
   font-size: 15px;
 }
 
-/* Hover underline */
+/* Nav hover effect */
 .nav-links a::after {
   content: "";
   position: absolute;
@@ -74,9 +73,7 @@ body {
   width: 100%;
 }
 
-/* ========================= */
-/* HERO */
-/* ========================= */
+/* ===== HERO ===== */
 .hero {
   text-align: center;
   padding: 100px 20px;
@@ -87,6 +84,7 @@ body {
   background: linear-gradient(90deg, #38bdf8, #6366f1);
   -webkit-background-clip: text;
   color: transparent;
+  word-wrap: break-word;
 }
 
 .hero p {
@@ -96,11 +94,11 @@ body {
   font-size: 16px;
 }
 
-/* BUTTON */
+/* ===== BUTTON ===== */
 .btn {
   display: inline-block;
   margin-top: 25px;
-  padding: 12px 28px;
+  padding: 12px 26px;
   background: #38bdf8;
   color: black;
   border-radius: 8px;
@@ -114,16 +112,14 @@ body {
   background: #0ea5e9;
 }
 
-/* ========================= */
-/* CATEGORIES */
-/* ========================= */
+/* ===== CATEGORIES ===== */
 .categories {
   padding: 40px 0;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
 }
 
@@ -142,9 +138,7 @@ body {
   background: #0f172a;
 }
 
-/* ========================= */
-/* ABOUT */
-/* ========================= */
+/* ===== ABOUT ===== */
 .about {
   padding: 60px 20px;
   text-align: center;
@@ -160,9 +154,7 @@ body {
   color: #cbd5f5;
 }
 
-/* ========================= */
-/* FOOTER */
-/* ========================= */
+/* ===== FOOTER ===== */
 footer {
   text-align: center;
   padding: 20px;
@@ -171,9 +163,7 @@ footer {
   font-size: 14px;
 }
 
-/* ========================= */
-/* ANIMATIONS */
-/* ========================= */
+/* ===== ANIMATION ===== */
 .fade-in {
   opacity: 0;
   transform: translateY(40px);
@@ -185,18 +175,20 @@ footer {
   transform: translateY(0);
 }
 
-/* ========================= */
-/* RESPONSIVE */
-/* ========================= */
+/* ===== RESPONSIVE ===== */
 
 /* Tablet */
 @media (max-width: 900px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
+  .hero {
+    padding: 80px 20px;
   }
 
   .hero h2 {
-    font-size: 32px;
+    font-size: 30px;
+  }
+
+  .hero p {
+    font-size: 15px;
   }
 }
 
@@ -204,31 +196,57 @@ footer {
 @media (max-width: 600px) {
   .nav-container {
     flex-direction: column;
+    align-items: center;
     gap: 10px;
   }
 
   .nav-links {
-    text-align: center;
+    justify-content: center;
   }
 
   .nav-links a {
-    margin: 10px;
-    display: inline-block;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
+    margin: 8px;
+    font-size: 14px;
   }
 
   .hero {
-    padding: 60px 15px;
+    padding: 60px 10px;
   }
 
   .hero h2 {
-    font-size: 26px;
+    font-size: 24px;
   }
 
   .hero p {
     font-size: 14px;
+  }
+
+  .btn {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+
+  .cat {
+    padding: 20px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 400px) {
+  .hero h2 {
+    font-size: 20px;
+  }
+
+  .hero p {
+    font-size: 13px;
+  }
+
+  .btn {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .logo {
+    font-size: 18px;
   }
 }
