@@ -1,33 +1,38 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <title>Shop It - Try On</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="../css/tryon.css" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Virtual Try-On | Shop It</title>
+    <link rel="stylesheet" href="tryon.css" />
   </head>
-
   <body>
     <div class="top-bar">
-      <button onclick="goBack()">⬅ Back</button>
-      <h3>Virtual Try-On</h3>
+      <button onclick="goBack()">← Back</button>
+      <h3>✨ Virtual Try-On</h3>
+      <div class="spacer"></div>
     </div>
 
     <div class="camera-container">
-      <video id="video" autoplay playsinline></video>
+      <video id="video" autoplay playsinline muted></video>
       <canvas id="canvas"></canvas>
     </div>
 
-    <!-- Controls -->
     <div class="controls">
-      <button onclick="changeSize(-0.1)">➖</button>
-      <button onclick="capture()">📸</button>
-      <button onclick="changeSize(0.1)">➕</button>
+      <button onclick="changeSize(-0.1)">−</button>
+      <button onclick="capturePhoto()">📸</button>
+      <button onclick="changeSize(0.1)">+</button>
     </div>
+    <div class="status-hint" id="statusHint">Adjust size with + / −</div>
 
-    <!-- MediaPipe -->
+    <!-- MediaPipe libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
-    <script src="../js/tryon.js"></script>
+    <!-- Main try-on logic -->
+    <script src="tryon.js"></script>
   </body>
 </html>
