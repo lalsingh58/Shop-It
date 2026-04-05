@@ -140,6 +140,7 @@ let smoothRot = 0;
 function updateModel(lm, w, h) {
   if (!model) return;
 
+  // ===== LANDMARKS =====
   const leftEye = getPos(lm[33], w, h);
   const rightEye = getPos(lm[263], w, h);
   const nose = getPos(lm[1], w, h);
@@ -148,57 +149,102 @@ function updateModel(lm, w, h) {
   const leftEar = getPos(lm[234], w, h);
   const rightEar = getPos(lm[454], w, h);
 
-  let center = new THREE.Vector3();
-
-  // ================= 🎯 PRODUCT BASED POSITION =================
-
-  if (productType === "glasses") {
-    // 👓 Eyes center
-    center.addVectors(leftEye, rightEye).multiplyScalar(0.5);
-    center.z = nose.z - 0.35;
-  } else if (productType === "cap") {
-    // 🧢 Top of head
-    center.copy(forehead);
-    center.y += 0.25;
-    center.z = nose.z - 0.6;
-  } else if (productType === "wig") {
-    // 💇 Full head coverage
-    center.copy(forehead);
-    center.y += 0.15;
-    center.z = nose.z - 0.7;
-  } else if (productType === "earring") {
-    // 💍 Place between ears (we'll duplicate visually)
-    center.addVectors(leftEar, rightEar).multiplyScalar(0.5);
-    center.y -= 0.1;
-    center.z = nose.z - 0.2;
-  }
-
-  // ================= 🎯 SMOOTH =================
-  smoothPos.lerp(center, 0.35);
-  model.position.copy(smoothPos);
-
-  // ================= 🎯 ROTATION =================
-  const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
-  smoothRot += (angle - smoothRot) * 0.35;
-  model.rotation.set(0, 0, smoothRot);
-
-  // ================= 🎯 SCALE =================
+  // ===== FACE METRICS =====
   const faceWidth = leftEar.distanceTo(rightEar);
   const faceHeight = forehead.distanceTo(chin);
 
-  let scale;
+  // ===== HEAD ROTATION (Z) =====
+  const angleZ = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+  smoothRot += (angleZ - smoothRot) * 0.4;
 
+  // ===== HEAD ROTATION (Y - TURN LEFT/RIGHT) =====
+  const depthDiff = rightEye.z - leftEye.z;
+  const rotY = depthDiff * 2.5;
+
+  // ===== HEAD ROTATION (X - LOOK UP/DOWN) =====
+  const midEyeY = (leftEye.y + rightEye.y) / 2;
+  const rotX = (midEyeY - nose.y) * 2;
+
+  let center = new THREE.Vector3();
+
+  // ================= 👓 GLASSES =================
   if (productType === "glasses") {
-    scale = faceWidth * 2.2 * baseScale;
-  } else if (productType === "cap") {
-    scale = faceWidth * 3.2 * baseScale;
-  } else if (productType === "wig") {
-    scale = faceWidth * 3.8 * baseScale;
-  } else if (productType === "earring") {
-    scale = faceWidth * 0.8 * baseScale;
+    center.addVectors(leftEye, rightEye).multiplyScalar(0.5);
+
+    // 🔥 Nose alignment (important)
+    center.y -= 0.02;
+    center.z = nose.z - 0.35;
+
+    const scale = faceWidth * 2.1 * baseScale;
+    model.scale.set(scale, scale, scale);
   }
 
-  model.scale.set(scale, scale, scale);
+  // ================= 🧢 CAP =================
+  else if (productType === "cap") {
+    center.copy(forehead);
+
+    // 🔥 push upward + back
+    center.y += faceHeight * 0.35;
+    center.z = nose.z - 0.7;
+
+    const scale = faceWidth * 3.2 * baseScale;
+    model.scale.set(scale, scale, scale);
+  }
+
+  // ================= 💇 WIG =================
+  else if (productType === "wig") {
+    center.copy(forehead);
+
+    // 🔥 full head cover
+    center.y += faceHeight * 0.25;
+    center.z = nose.z - 0.8;
+
+    const scale = faceWidth * 3.8 * baseScale;
+    model.scale.set(scale, scale, scale);
+  }
+
+  // ================= 💍 EARRINGS =================
+  else if (productType === "earring") {
+    // 👉 handled separately (see below)
+    updateEarrings(leftEar, rightEar, faceWidth);
+    return;
+  }
+
+  // ===== SMOOTH POSITION =====
+  smoothPos.lerp(center, 0.4);
+  model.position.copy(smoothPos);
+
+  // ===== APPLY ROTATION (FULL 3D) =====
+  model.rotation.set(rotX, rotY, smoothRot);
+}
+
+let leftEarring = null;
+let rightEarring = null;
+
+function updateEarrings(leftEar, rightEar, faceWidth) {
+  if (!model) return;
+
+  // create clones once
+  if (!leftEarring) {
+    leftEarring = model;
+    rightEarring = model.clone();
+
+    scene.add(leftEarring);
+    scene.add(rightEarring);
+  }
+
+  const scale = faceWidth * 0.9 * baseScale;
+
+  leftEarring.scale.set(scale, scale, scale);
+  rightEarring.scale.set(scale, scale, scale);
+
+  // position each ear separately
+  leftEarring.position.lerp(leftEar, 0.4);
+  rightEarring.position.lerp(rightEar, 0.4);
+
+  // slight downward adjustment
+  leftEarring.position.y -= 0.05;
+  rightEarring.position.y -= 0.05;
 }
 
 // ================= AI =================
